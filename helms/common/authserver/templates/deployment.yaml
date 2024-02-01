@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "authserver.fullname" . }}
+  labels:
+    {{- include "authserver.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "authserver.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "authserver.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "authserver.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbAuthServer }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Keepalive=1;Password={{ .Values.dbPassword }}"
+            - name: "AuthSettings__SecurityKeyBase64"
+              value: {{ .Values.authserverSecurityKeyBase64 | quote }}
+            - name: "DefaultClientApplications__0__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}              
+            - name: "DefaultClientApplications__1__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__2__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__3__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__4__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__5__ClientSecret"
+              value: {{ .Values.channelPartnerApiAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__6__ClientSecret"
+              value: {{ .Values.emailManagementApiAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__7__ClientSecret"
+              value: {{ .Values.emailSenderAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__8__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__9__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__10__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__11__ClientSecret"
+              value: {{ .Values.cpEmailManagementPortalAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__12__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__13__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__14__ClientSecret"
+              value: {{ .Values.productApiAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__15__ClientSecret"
+              value: {{ .Values.insuranceApiAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__16__ClientSecret"
+              value: {{ .Values.pdfGenApiAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__17__ClientSecret"
+              value: {{ .Values.userApiAuthSettingsClientSecret | quote }}
+            - name: "DefaultClientApplications__18__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__19__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__20__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__21__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__22__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__23__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+            - name: "DefaultClientApplications__24__ClientSecret"
+              value: {{ .Values.defaultClientApplicationsClientSecret | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

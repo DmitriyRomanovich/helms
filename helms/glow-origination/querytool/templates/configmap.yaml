@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config-querytool
+data:
+  config.js: |
+    window._config_ = {
+      QUERY_TOOL_DOMAIN: '{{ .Values.webUrlQT }}',
+      AZURE_AD_DISABLED: {{ .Values.azureADDisabled }},
+      CUSTOMER_PORTAL_URL: '{{ .Values.webUrlCPUI }}',
+      SIGNAL_R_DOMAIN: '{{ .Values.signalRDomain }}',
+      CUSTOMER_PORTAL_GW_URL: '{{ .Values.webUrlCPApigw }}',
+      IMPERSONATION_SERVICE: '{{ .Values.webUrlCPImpersonation }}'
+    };

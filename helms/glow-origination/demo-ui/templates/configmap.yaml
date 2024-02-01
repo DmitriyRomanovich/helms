@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config-demo
+data:
+  config.js: |
+    window._config_ = {
+      GLOW_WEB_DOMAIN: '{{ .Values.webUrlApp }}',
+      USER_EXAMPLE_SITE_API_DOMAIN: '{{ .Values.userExampleSiteApiDomain }}',
+      USER_EXAMPLE_SITE_WEB_DOMAIN: '{{ .Values.userExampleSiteWebDomain }}',
+      AZURE_AD_DISABLED: {{ .Values.azureADDisabled }},
+      FINANCIAL_CALCULATOR_WEB_DOMAIN: '{{ .Values.webUrlFincalc }}'
+    };

@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "notificationapi.fullname" . }}
+  labels:
+    {{- include "notificationapi.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "notificationapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "notificationapi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "notificationapi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if regexMatch "dev" .Values.namespace }}  
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Development"
+            {{- end }}
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"                 
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "SendGridAccountSettings__ApiKey"
+              value: "{{ .Values.commsSendGridAccountSettingsApiKey }}"
+            - name: "SendGridAccountSettings__From"
+              value: "{{ .Values.commsSendGridAccountSettingsFrom }}"
+            - name: "TwilioAccountSettings__AccountSid"
+              value: "{{ .Values.commsTwilioAccountSettingsAccountSid }}" 
+            - name: "TwilioAccountSettings__AuthToken"
+              value: "{{ .Values.commsTwilioAccountSettingsAuthToken }}"
+            {{- if or (eq (.Values.customerName | toString) "samsung-aue") (eq (.Values.customerName | toString) "ee-uks") }}
+            - name: "TwilioAccountSettings__From"
+              value: "{{ .Values.commsTwilioAccountSettingsFrom }}"
+            {{- else }}
+            - name: "TwilioAccountSettings__From"
+              value: "+{{ .Values.commsTwilioAccountSettingsFrom }}"
+            {{- end }}
+            {{- if ne .Values.commsTwilioAccountSettingsRegion "$(commsTwilioAccountSettingsRegion)" }}
+            - name: "TwilioAccountSettings__Region"
+              value: "{{ .Values.commsTwilioAccountSettingsRegion }}"
+            - name: "TwilioWhatsAppAccountSettings__Region"
+              value: "{{ .Values.commsTwilioAccountSettingsRegion }}"
+            {{- end }}
+            {{- if ne .Values.commsTwilioAccountSettingsEdge "$(commsTwilioAccountSettingsEdge)" }}
+            - name: "TwilioAccountSettings__Edge"
+              value: "{{ .Values.commsTwilioAccountSettingsEdge }}"
+            - name: "TwilioWhatsAppAccountSettings__Edge"
+              value: "{{ .Values.commsTwilioAccountSettingsEdge }}"
+            {{- end }}
+            - name: "TwilioWhatsAppAccountSettings__AccountSid"
+              value: "{{ .Values.commsTwilioAccountSettingsAccountSid }}" 
+            - name: "TwilioWhatsAppAccountSettings__AuthToken"
+              value: "{{ .Values.commsTwilioAccountSettingsAuthToken }}"
+            - name: "TwilioWhatsAppAccountSettings__From"
+              value: "{{ .Values.commsTwilioWhatsAppAccountSettingsFrom }}"
+            - name: "BlobStorageSettings__ConnectionString"
+              value: "DefaultEndpointsProtocol=https;AccountName={{ .Values.commsBlobStorageSettingsAccountName }};AccountKey={{ .Values.commsBlobStorageSettingsAccountKey }};EndpointSuffix=core.windows.net" 
+            - name: "BlobStorageSettings__AccountKey"
+              value: "{{ .Values.commsBlobStorageSettingsAccountKey }}" 
+            - name: "BlobStorageSettings__AccountName"
+              value: "{{ .Values.commsBlobStorageSettingsAccountName }}"
+            - name: "StrApiSettings__ApiUrl"
+              value: "{{ .Values.commsStrApiSettingsApiUrl }}"
+            - name: "Environment__Namespace"
+              value: "{{ .Values.namespace }}"
+            - name: "Environment__Client"
+              value: "{{ .Values.customerName }}"
+          resources: 
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

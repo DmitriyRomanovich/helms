@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config-integrationportalui
+data:
+  config.js: |
+    window._config_ = {
+      API_DOMAIN: '{{ .Values.integrationportalApiURL }}'
+    };

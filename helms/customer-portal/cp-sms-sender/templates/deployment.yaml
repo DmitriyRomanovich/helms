@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-sms-sender.fullname" . }}
+  labels:
+    {{- include "cp-sms-sender.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-sms-sender.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-sms-sender.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-sms-sender.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "RabbitMqSettings__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqSettings__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqSettings__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            {{- if eq (.Values.cpSMSMethodSettingViaComms | toString ) "true" }}
+            - name: "CustomerRecordAPIOptions__URI"
+              value: "http://cp-customer-record.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "CustomerRecordAPIOptions__TimeoutInMilliseconds"
+              value: "{{ .Values.cpsmsSenderCustomerRecordAPIOptionsTimeoutInMilliseconds }}"
+            - name: "CustomerRecordAPIOptions__WaitInMilliseconds"
+              value: "{{ .Values.cpsmsSenderCustomerRecordAPIOptionsWaitInMilliseconds }}"
+            - name: "CommsGatewayHttpSettings__Url"
+              value: "{{ .Values.cpCommsGatewayApiURL }}"
+            - name: "CommsGatewayHttpSettings__Token"
+              value: {{ .Values.cpCommsGatewayHttpSettingsToken | quote }}
+            {{- else }}
+            - name: "TwilioAccountSettings__AccountSid"
+              value: {{ .Values.twilioAccountSettingsAccountSid | quote }}
+            - name: "TwilioAccountSettings__AuthToken"
+              value: {{ .Values.twilioAccountSettingsAuthToken | quote }}
+            - name: "TwilioAccountSettings__FromNumber"
+              value: "+{{ .Values.twilioAccountSettingsFromNumber }}"
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

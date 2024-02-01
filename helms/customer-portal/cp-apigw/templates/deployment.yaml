@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-apigw.fullname" . }}
+  labels:
+    {{- include "cp-apigw.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-apigw.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-apigw.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-apigw.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "LocalizationClientOptions__Identifier"
+              value: "{{ .Values.cpLocalizationClientIdentifier }}"
+            - name: "LocalizationClientOptions__Password"
+              value: {{ .Values.cpLocalizationClientPassword | quote }}
+            - name: "LocalizationClientOptions__ApiUrl"
+              value: "{{ .Values.cpLocalizationURL }}"
+            - name: "LocalizationClientOptions__PublicUrl"
+              value: "{{ .Values.cpLocalizationURL }}"
+            - name: "ClientOrigin__Urls__0"
+              value: "{{ .Values.webUrlCPUI }}"
+            - name: "ClientOrigin__Urls__1"
+              value: "{{ .Values.webUrlQT }}"
+            - name: "ClientOrigin__Urls__2"
+              value: "null"            
+            ### ocelot.json
+            - name: "Routes__0__DownstreamHostAndPorts__0__Host"
+              value: "cp-auth-api.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__1__DownstreamHostAndPorts__0__Host"
+              value: "cp-local.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__2__DownstreamHostAndPorts__0__Host"
+              value: "cp-addresses.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__3__DownstreamHostAndPorts__0__Host"
+              value: "null" #insurance-api
+            - name: "Routes__3__UpstreamHeaderTransform__Authorization"
+              value: "null" #insurance-api
+            - name: "Routes__4__DownstreamHostAndPorts__0__Host"
+              value: "null" #insproduct-api
+            - name: "Routes__4__UpstreamHeaderTransform__Authorization"
+              value: "null" #insproduct-api
+            - name: "Routes__5__DownstreamHostAndPorts__0__Host"
+              value: "null" #insuser-api
+            - name: "Routes__5__UpstreamHeaderTransform__Authorization"
+              value: "null" #insuser-api
+            - name: "Routes__6__DownstreamHostAndPorts__0__Host"
+              value: "cp-sq.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__7__DownstreamHostAndPorts__0__Host"
+              value: "cp-file-storage.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__8__DownstreamHostAndPorts__0__Host"
+              value: "cp-customer-info-proxy.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__9__DownstreamHostAndPorts__0__Host"
+              value: "cp-customer-device-native.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__10__DownstreamHostAndPorts__0__Host"
+              value: "cp-loans.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__11__DownstreamHostAndPorts__0__Host"
+              value: "cp-adyen-service.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__12__DownstreamHostAndPorts__0__Host"
+              value: "cp-adyen-service.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__13__DownstreamHostAndPorts__0__Host"
+              value: "cp-loan-proxy.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__14__DownstreamHostAndPorts__0__Host"
+              value: "cp-payment-proxy.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__15__DownstreamHostAndPorts__0__Host"
+              value: "cp-email-service.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__16__DownstreamHostAndPorts__0__Host"
+              value: "cp-adyen-proxy.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "Routes__17__DownstreamHostAndPorts__0__Host"
+              value: "cp-documents-proxy.{{ .Values.cpNamespace }}.svc.cluster.local"
+
+            - name: "SwaggerEndPoints__0__Config__0__Url"
+              value: "http://cp-auth-api.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__1__Config__0__Url"
+              value: "http://cp-addresses.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__2__Config__0__Url"
+              value: "null" # http://insurance-api/swagger/v1/swagger.json
+            - name: "SwaggerEndPoints__3__Config__0__Url"
+              value: "null" # http://insproduct-api/swagger/v1/swagger.json
+            - name: "SwaggerEndPoints__4__Config__0__Url"
+              value: "null" # http://insuser-api/swagger/v1/swagger.json
+            - name: "SwaggerEndPoints__5__Config__0__Url"
+              value: "http://cp-sq.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__6__Config__0__Url"
+              value: "http://cp-file-storage.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__7__Config__0__Url"
+              value: "http://cp-customer-info-proxy.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__8__Config__0__Url"
+              value: "http://cp-customer-device-native.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__9__Config__0__Url"
+              value: "http://cp-loans.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__10__Config__0__Url"
+              value: "http://cp-adyen-service.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__11__Config__0__Url"
+              value: "http://cp-loan-proxy.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__12__Config__0__Url"
+              value: "http://cp-payment-proxy.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__13__Config__0__Url"
+              value: "http://cp-email-service.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__14__Config__0__Url"
+              value: "http://cp-adyen-proxy.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+            - name: "SwaggerEndPoints__15__Config__0__Url"
+              value: "http://cp-documents-proxy.{{ .Values.cpNamespace }}.svc.cluster.local/swagger/v1/swagger.json"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

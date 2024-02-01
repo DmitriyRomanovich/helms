@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gatewayapi.fullname" . }}
+  labels:
+    {{- include "gatewayapi.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "gatewayapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "gatewayapi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "gatewayapi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if regexMatch "dev" .Values.namespace }}  
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Development"
+            {{- end }}
+            - name: "ConnectionStrings__comms_history"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbCommsHistory }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"              
+            - name: "SvcRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "SvcRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}" 
+            - name: "SvcRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "SvcRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "ProcessingRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "ProcessingRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}" 
+            - name: "ProcessingRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "ProcessingRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "WebhookRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "WebhookRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}" 
+            - name: "WebhookRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "WebhookRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "SchedulingRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "SchedulingRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}" 
+            - name: "SchedulingRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "SchedulingRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "NotificationRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "NotificationRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"                 
+            - name: "NotificationRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "NotificationRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "RenderingRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RenderingRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"                 
+            - name: "RenderingRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RenderingRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "StrApiSettings__ApiUrl"
+              value: "{{ .Values.commsStrApiSettingsApiUrl }}"               
+            - name: "StrApiSettings__Identifier"
+              value: "{{ .Values.commsStrApiSettingsIdentifier }}"
+            - name: "StrApiSettings__Password"
+              value: {{ .Values.commsStrApiSettingsPassword | quote }}
+            {{- if eq (.Values.isProduction | toString) "true" }}
+            - name: "JwtSettings__Key"
+              value: "{{ .Values.commsJwtSettingsKey }}"
+            {{- end }}
+            - name: "BlobStorageSettings__AccountKey"
+              value: {{ .Values.commsBlobStorageSettingsAccountKey | quote }}
+            - name: "BlobStorageSettings__AccountName"
+              value: "{{ .Values.commsBlobStorageSettingsAccountName }}"
+            - name: "BlobStorageSettings__ContainerName"
+              value: "{{ .Values.commsBlobStorageSettingsContainerName }}"
+            - name: "BlobStorageSettings__ConnectionString"
+              value: "DefaultEndpointsProtocol=https;AccountName={{ .Values.commsBlobStorageSettingsAccountName }};AccountKey={{ .Values.commsBlobStorageSettingsAccountKey }};EndpointSuffix=core.windows.net"              
+            - name: "TwilioAccountSettings__AuthToken"
+              value: "{{ .Values.commsTwilioAccountSettingsAuthToken }}"
+            - name: "TwilioAccountSettings__CallBackUrl"
+              value: "{{ .Values.commsTwilioAccountSettingsCallBackUrl }}"
+            - name: "TwilioWhatsAppAccountSettings__AuthToken"
+              value: "{{ .Values.commsTwilioAccountSettingsAuthToken }}"
+            - name: "TwilioWhatsAppAccountSettings__CallBackUrl"
+              value: "{{ .Values.commsTwilioWhatsAppAccountSettingsCallBackUrl }}"
+            {{- if ne .Values.commsSendGridAccountSettingsVerificationKey "$(commsSendGridAccountSettingsVerificationKey)" }}
+            - name: "SendGridAccountSettings__VerificationKey"
+              value: "{{ .Values.commsSendGridAccountSettingsVerificationKey }}"
+            {{- end }}
+            - name: "IntegrationPortalSettings__BaseAddress"
+              value: "{{ .Values.integrationportalApiPrivateURL }}"
+            - name: "IntegrationPortalSettings__Username"
+              value: "{{ .Values.integrationPortalSettingsUsername }}"
+            - name: "IntegrationPortalSettings__Password"
+              value: "{{ .Values.integrationPortalSettingsPassword }}"
+            - name: "Environment__Namespace"
+              value: "{{ .Values.namespace }}"
+            - name: "Environment__Client"
+              value: "{{ .Values.customerName }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

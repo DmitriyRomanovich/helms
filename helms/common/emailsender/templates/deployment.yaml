@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "emailsender.fullname" . }}
+  labels:
+    {{- include "emailsender.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "emailsender.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "emailsender.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "emailsender.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbEmailSender }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "AuthSettings__AuthServerUrl"
+              value: "http://authserver.{{ .Values.commonNamespace }}.svc.cluster.local:8080"
+            - name: "AuthSettings__ClientId"
+              value: "{{ .Values.emailSenderAuthSettingsClientId }}"
+            - name: "AuthSettings__ClientSecret"
+              value: {{ .Values.emailSenderAuthSettingsClientSecret | quote }}
+            - name: "MicroservicesSettings__EmailTemplateManagementApiUrl"
+              value: "http://email-management-api.{{ .Values.commonNamespace }}.svc.cluster.local"
+            - name: "SendGridAccountSettings__ApiKey"
+              value: "{{ .Values.sendGridAccountSettingsApiKey }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

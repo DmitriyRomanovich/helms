@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "reworker.fullname" . }}
+  labels:
+    {{- include "reworker.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "reworker.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "reworker.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "reworker.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if regexMatch "dev" .Values.namespace }}  
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Development"
+            {{ end }} 
+            - name: "ConnectionStrings__rule_engine_builder"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.reBuilderDB }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"                                
+            - name: "ConnectionStrings__rule_engine_execution"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.reExecutionDB }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"                           
+            - name: "GlowCalculationServiceOptions__Uri"
+              value: "{{ .Values.glowCalculationServiceOptionsUri }}"
+            - name: "ReWorkerRabbitMqSettings__ExchangeNames__IncomingExchange"
+              value: "ReWorkerIncomingExchange"
+            - name: "ReWorkerRabbitMqSettings__ExchangeNames__OutgoingExchange"
+              value: "ReWorkerOutgoingExchange"
+            - name: "ReWorkerRabbitMqSettings__ExchangeNames__InvalidateCacheExchange"
+              value: "ReWorkerInvalidateCacheExchange"
+            - name: "ReWorkerRabbitMqSettings__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "ReWorkerRabbitMqSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "ReWorkerRabbitMqSettings__Password"
+              value: "{{ .Values.rabbitmqPassword }}"
+            - name: "ReWorkerRabbitMqSettings__VirtualHost"
+              value: "{{ .Values.reRabbitmqVHost }}"
+            - name: "SendGridAccountSettings__ApiKey"
+              value: "{{ .Values.reSendGridAccountSettingsApiKey }}"
+            - name: "SendGridAccountSettings__From"
+              value: "{{ .Values.reSendGridAccountSettingsFrom }}"
+            - name: "SendGridAccountSettings__FromName"
+              value: "{{ .Values.reSendGridAccountSettingsFromName }}"
+            - name: "TwilioAccountSettings__UserName"
+              value: "{{ .Values.twilioAccountSettingsAccountSid }}"
+            - name: "TwilioAccountSettings__Password"
+              value: {{ .Values.twilioAccountSettingsAuthToken | quote }}
+            - name: "TwilioAccountSettings__FromNumber"
+              value: "{{ .Values.twilioAccountSettingsFromNumber }}"
+            - name: "ReBuilderServiceSettings__AppUri"
+              value: "{{ .Values.reBuilderUIPublicURL }}"
+            - name: "ReBuilderServiceSettings__ApiUri"
+              value: "{{ .Values.reBuilderApiPublicURL }}"
+            - name: "ReExecutionServiceSettings__AppUri"
+              value: "{{ .Values.reExecutionUIPublicURL }}"
+            - name: "ReExecutionServiceSettings__ApiUri"
+              value: "{{ .Values.reExecutionApiPublicURL }}"
+            - name: "AzureKeyVaultSettings__Uri"
+              value: "{{ .Values.reAzureKeyVaultSettingsUri }}"
+            - name: "AzureKeyVaultSettings__Auth__TenantId"
+              value: "{{ .Values.reAzureKeyVaultSettingsAuthTenantId }}"
+            - name: "AzureKeyVaultSettings__Auth__ClientId"
+              value: "{{ .Values.reAzureKeyVaultSettingsAuthClientId }}"
+            - name: "AzureKeyVaultSettings__Auth__ClientSecret"
+              value: {{ .Values.reAzureKeyVaultSettingsAuthClientSecret | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

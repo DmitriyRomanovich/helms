@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config-bankapi
+data:
+  config.js: |
+    window._config_ = {
+      BANK_CHECK_DOMAIN: '{{ .Values.bankCheckDomain }}',
+      AZURE_AD_DISABLED: {{ .Values.azureADDisabled }}
+    };

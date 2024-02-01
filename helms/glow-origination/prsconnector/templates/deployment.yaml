@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prsconnector.fullname" . }}
+  labels:
+    {{- include "prsconnector.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "prsconnector.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "prsconnector.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prsconnector.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: "PrsClient__Url"
+              value: "{{ .Values.prsConnectorUrl }}"
+            - name: "PrsClient__User"
+              value: "{{ .Values.prsConnectorUser }}"
+            - name: "PrsClient__Password"
+              value: {{ .Values.prsConnectorPassword | quote }}
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__logName
+              value: "{{ .Values.prodPIILogsWorkspaceLogName }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__workspaceId
+              value: "{{ .Values.prodPIILogsWorkspaceID }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__authenticationId
+              value: "{{ .Values.prodPIILogsWorkspaceAuthenticationKey }}"
+          #livenessProbe:
+          #  httpGet:
+           #   path: /
+          #    port: http
+          #readinessProbe:
+           # httpGet:
+            #  path: /
+            #  port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

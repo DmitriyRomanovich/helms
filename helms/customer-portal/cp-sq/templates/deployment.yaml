@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-sq.fullname" . }}
+  labels:
+    {{- include "cp-sq.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-sq.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-sq.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-sq.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbCPSQ }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Keepalive=1;Password={{ .Values.dbPassword }}"    
+            - name: "AzureADB2COptions__TenantName"
+              value: "{{ .Values.azureADB2COptionsTenantName }}"
+            - name: "AzureADB2COptions__ApplicationId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdCPSQ }}"
+            - name: "AzureADB2COptions__TenantId"
+              value: "{{ .Values.azureADB2COptionsTenantId }}"
+            - name: "AzureADB2COptions__ClientSecret"
+              value: {{ .Values.azureADB2COptionsClientSecretCPSQ | quote }}
+            - name: "AzureADB2COptions__URI"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com/{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/oauth2/v2.0/authorize"
+            - name: "AzureADB2COptions__SignUpRedirectionLink"
+              value: "{{ .Values.webUrlCPUI }}"
+            - name: "AzureADB2COptions__Authority"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com/tfp/{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/B2C_1A_SIGNIN/oauth2/v2.0"
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com"
+            - name: "AzureAd__Instance"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com"
+            - name: "AzureAd__TenantId"
+              value: "{{ .Values.azureADB2COptionsTenantId }}"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdCPSQ }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.azureADB2COptionsClientSecretCPSQ | quote }}
+            - name: "LocalizationAPIOptions__URI"
+              value: "http://cp-local.{{ .Values.cpNamespace }}.svc.cluster.local"
+            {{- if eq (.Values.cpUseCPStrapi | toString) "true" }}
+            - name: "LocalizationAPIOptions__NewModel"
+              value: "true"
+            {{- else }}
+            - name: "LocalizationAPIOptions__NewModel"
+              value: "false"
+            {{- end }}
+            - name: "CustomerInfoProxyAPIOptions__URI"
+              value: "http://cp-customer-info-proxy.{{ .Values.cpNamespace }}.svc.cluster.local" 
+            - name: "CustomerInfoProxyAPIOptions__Scopes__0"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdCustomerInformationProxy }}/.default"
+            - name: "CustomerInfoProxyAPIOptions__TimeoutInMilliseconds"
+              value: "{{ .Values.cpCustomerInfoProxyAPIOptionsTimeoutInMilliseconds }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

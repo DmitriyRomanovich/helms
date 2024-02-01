@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-documents-proxy.fullname" . }}
+  labels:
+    {{- include "cp-documents-proxy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-documents-proxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-documents-proxy.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-documents-proxy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "AzureADB2COptions__ApplicationId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdCPDocumentProxy }}"
+            - name: "AzureADB2COptions__ClientSecret"
+              value: {{ .Values.azureADB2COptionsClientSecretCPDocumentProxy | quote }}
+            - name: "AzureADB2COptions__URI"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com/{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/oauth2/v2.0/authorize"
+            - name: "AzureADB2COptions__Authority"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com/tfp/{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/B2C_1A_SIGNIN/oauth2/v2.0"
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com"
+            - name: "AzureAd__Instance"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdCPDocumentProxy }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.azureADB2COptionsClientSecretCPDocumentProxy | quote }}             
+            - name: "AryzaLoanAPIOptions__URI"
+              value: "http://cp-aryza.{{ .Values.cpNamespace }}.svc.cluster.local"       
+            - name: "AryzaLoanAPIOptions__Scopes__0"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdAryzaService }}/.default"
+            - name: "CustomerRecordAPIOptions__URI"
+              value: "http://cp-customer-record.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "AryzaLoanAPIOptions__TimeoutInMilliseconds"
+              value: "{{ .Values.cpAryzaAPIOptionsTimeoutInMilliseconds }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

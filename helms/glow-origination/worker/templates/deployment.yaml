@@ -1,0 +1,442 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "worker.fullname" . }}
+  labels:
+    {{- include "worker.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "worker.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "worker.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "worker.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: "ASPNETCORE_FORWARDEDHEADERS_ENABLED"
+              value: "true"
+            - name: "ForwardedForHeaderName__Value"
+              value: "{{ .Values.forwardedForHeaderNameValue }}"
+            - name: "ClientSettings__Uri"
+              value: "http://demo-back.{{ .Values.namespace }}.svc.cluster.local"
+            - name: "ClientSettings__ClientName"
+              value: "{{ .Values.eventbushandlerClientSettingsClientName }}"
+            - name: "ClientSettings__ClientKey"
+              value: "{{ .Values.eventbushandlerClientSettingsClientKey }}"
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseApi }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Keepalive=1;Password={{ .Values.dbPassword }}"
+            - name: ConnectionStrings__historyDb
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseHistory }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Keepalive=1;Password={{ .Values.dbPassword }}"
+            - name: "LoqateSettings__AddressVerificationApiKey"
+              value: {{ .Values.loqateSettingsAddressVerificationApiKey | quote }}
+            - name: "LoqateSettings__UseMockedVerificationService"
+              value: "{{ .Values.loqateSettingsUseMockedVerificationService }}"
+            - name: "LoqateSettings__AddressVerificationApiUri"
+              value: {{ .Values.loqateSettingsAddressVerificationApiUri }}
+            - name: "LoqateSettings__AddressSettings__SearchCountry"
+              value: "{{ .Values.loqateSettingsAddressSettingsSearchCountry }}"
+            - name: "PosNotifications__LoanOutcomeNotification__SendNotification"
+              value: "{{ .Values.posNotificationsLoanOutcomeNotificationSendNotification }}"
+            - name: "SubmitStageOptions__Delivery"
+              value: "{{ .Values.submitStageOptionsDelivery }}"
+            - name: "SubmitStageOptions__IdRecognition"
+              value: "{{ .Values.submitStageOptionsIdRecognition }}"
+            - name: "SubmitStageOptions__UpfrontPayment"
+              value: "{{ .Values.submitStageOptionsUpfrontPayment }}"
+            - name: "SubmitStageOptions__VerificationCode"
+              value: "{{ .Values.submitStageOptionsVerificationCode }}"
+            - name: "SendGridAccountSettings__From"
+              value: "{{ .Values.sendGridAccountSettingsFrom }}"
+            {{- if ne .Values.sendGridAccountSettingsFromName "$(sendGridAccountSettingsFromName)" }}
+            - name: "SendGridAccountSettings__FromName"
+              value: "{{ .Values.sendGridAccountSettingsFromName }}"  
+            {{ end }}
+            - name: "WebDomains__GlowDomain"
+              value: "{{ .Values.webUrlApp }}"
+            - name: "WebDomains__SessionWidgetDomain"
+              value: "{{ .Values.webUrlPs }}"
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "RabbitMqConfig__ExchangeSettings__LoanAgreementChange__UseGenericReceiverQueue"
+              value: "{{ .Values.rabbitMqConfigExchangeSettingsLoanAgreementChangeUseGenericReceiverQueue }}"
+            - name: "ServicesSettings__OutlookEmailSenderUseMocked"
+              value: "{{ .Values.servicesSettingsOutlookEmailSenderUseMocked }}"
+            - name: "ServicesSettings__TwillioSmsSenderUseMocked"
+              value: "{{ .Values.servicesSettingsTwillioSmsSenderUseMocked }}"
+            - name: "ServicesSettings__VerificationCodeGeneratorUseMocked"
+              value: "{{ .Values.servicesSettingsVerificationCodeGeneratorUseMocked }}"
+            - name: "ServicesSettings__SendGridEmailSenderUseMocked"
+              value: "{{ .Values.servicesSettingsSendGridEmailSenderUseMocked }}"
+            - name: "ServicesSettings__UseOutlookEmailSender"
+              value: "{{ .Values.servicesSettingsUseOutlookEmailSender }}"
+            - name: "ServicesSettings__EnableProposalStatusPollingHostedService"
+              value: "{{ .Values.servicesSettingsEnableProposalStatusPollingHostedService }}"
+            - name: "AccertifySettings__ApiUrl"
+              value: "{{ .Values.accertifySettingsApiUrl }}"
+            - name: "AccertifySettings__ApiIdInitial"
+              value: "{{ .Values.accertifySettingsApiIdInitial }}"
+            - name: "AccertifySettings__ApiIdUpdateSuccess"
+              value: "{{ .Values.accertifySettingsApiIdUpdateSuccess }}"
+            - name: "AccertifySettings__ApiIdUpdateCancel"
+              value: "{{ .Values.accertifySettingsApiIdUpdateCancel }}"
+            - name: "AccertifySettings__ApiIdUpdateChange"
+              value: "{{ .Values.accertifySettingsApiIdUpdateChange }}"
+            - name: "AccertifySettings__TransactionApiServiceUseMocked"
+              value: "{{ .Values.accertifySettingsTransactionApiServiceUseMocked }}"
+            - name: "AccertifySettings__Authorization__Username"
+              value: "{{ .Values.accertifySettingsAuthorizationUsername }}"
+            - name: "AccertifySettings__Authorization__Password"
+              value: {{ .Values.accertifySettingsAuthorizationPassword | quote }}
+            - name: "MitekSettings__ApiUrl"
+              value: "{{ .Values.mitekSettingsApiUrl }}"
+            - name: "MitekSettings__ClientId"
+              value: "{{ .Values.mitekSettingsApiClientid }}"
+            - name: "MitekSettings__ClientSecretAuto"
+              value: {{ .Values.mitekSettingsClientSecretAuto | quote }}
+            - name: "MitekSettings__ClientSecretAgent"
+              value: {{ .Values.mitekSettingsClientSecretAgent | quote }}
+            - name: "MitekSettings__GrantType"
+              value: "{{ .Values.mitekSettingsGrantType }}"
+            - name: "MitekSettings__AutoScope"
+              value: "{{ .Values.mitekSettingsAutoScope }}"
+            - name: "MitekSettings__AgentScope"
+              value: "{{ .Values.mitekSettingsAgentScope }}"
+            - name: "MitekSettings__MaxScoreForAgentReview"
+              value: "{{ .Values.mitekSettingsMaxScoreForAgentReview }}"
+            - name: "MitekSettings__TakePictureAttempts"
+              value: "{{ .Values.mitekSettingsTakePictureAttempts }}"
+            - name: "MitekSettings__MinScoreForAgentReview"
+              value: "{{ .Values.mitekSettingsMinScoreForAgentReview }}"
+            - name: "MitekSettings__IsAutoReviewDisabled"
+              value: "{{ .Values.mitekSettingsIsAutoReviewDisabled }}"
+            - name: "MitekSettings__IsAgentReviewDisabled"
+              value: "{{ .Values.mitekSettingsIsAgentReviewDisabled }}"
+            - name: "MitekSettings__IsAgentReviewBirthdayCheckDisabled"
+              value: "{{ .Values.mitekSettingsIsAgentReviewBirthdayCheckDisabled }}"
+            - name: "MitekSettings__IsAutoReviewBirthdayCheckDisabled"
+              value: "{{ .Values.mitekSettingsIsAutoReviewBirthdayCheckDisabled }}"
+            - name: "MitekSettings__IsAutoReviewNameCheckDisabled"
+              value: "{{ .Values.mitekSettingsIsAutoReviewNameCheckDisabled }}"
+            - name: "MitekSettings__AutoReviewResponseTimeout"
+              value: "{{ .Values.mitekSettingsAutoReviewResponseTimeout }}"
+            - name: "MitekSettings__MinScoreForAutoReviewSuccess"
+              value: "{{ .Values.mitekSettingsMinScoreForAutoReviewSuccess }}"
+            - name: "MitekSettings__IsSelfieCheckDisabled"
+              value: "{{ .Values.mitekSettingsIsSelfieCheckDisabled }}"
+            - name: "AnchorProposalReviewPollingSettings__PeriodInSeconds"
+              value: "{{ .Values.anchorProposalReviewPollingSettingsPeriodInSeconds }}"
+            - name: "AnchorProposalReviewPollingSettings__FirstExecutionDelayInSeconds"
+              value: "{{ .Values.anchorProposalReviewPollingSettingsFirstExecutionDelayInSeconds }}"
+            - name: "AnchorSettings__ProposalsEndpoint__EndpointAddress"
+              value: "{{ .Values.anchorSettingsProposalsEndpointEndpointAddress }}"
+            - name: "AnchorSettings__ProposalsEndpoint__Username"
+              value: "{{ .Values.anchorSettingsProposalsEndpointUsername }}"
+            - name: "AnchorSettings__ProposalsEndpoint__Password"
+              value: {{ .Values.anchorSettingsProposalsEndpointPassword | quote }}
+            - name: "AnchorSettings__ProposalsEndpoint__Account"
+              value: "{{ .Values.anchorSettingsProposalsEndpointAccount }}"
+            - name: "AnchorSettings__CollectionsEndpoint__EndpointAddress"
+              value: "{{ .Values.anchorSettingsCollectionsEndpointEndpointAddress }}"
+            - name: "AnchorSettings__CollectionsEndpoint__Username"
+              value: "{{ .Values.anchorSettingsCollectionsEndpointUsername }}"
+            - name: "AnchorSettings__CollectionsEndpoint__Password"
+              value: {{ .Values.anchorSettingsCollectionsEndpointPassword | quote }}
+            - name: "AnchorSettings__CollectionsEndpoint__Account"
+              value: "{{ .Values.anchorSettingsCollectionsEndpointAccount }}"
+            - name: "AnchorSettings__VerboseMode"
+              value: "{{ .Values.anchorSettingsVerboseMode }}"
+            - name: "AnchorSettings__MaxProposalUpdateWaitingSeconds"
+              value: "{{ .Values.anchorSettingsMaxProposalUpdateWaitingSeconds }}"
+            - name: "AnchorSettings__UseMocked"
+              value: "{{ .Values.anchorSettingsUseMocked }}"
+            - name: "GoCardlessOptions__DefaultCountryCode"
+              value: "{{ .Values.goCardlessOptionsDefaultCountryCode }}"
+            - name: "GoCardlessOptions__UseSandBox"
+              value: "{{ .Values.goCardlessOptionsUseSandBox }}"
+            - name: "GoCardlessOptions__UseMocked"
+              value: "{{ .Values.goCardlessOptionsUseMocked }}"
+            - name: "GoCardlessOptions__AccessToken"
+              value: {{ .Values.goCardlessApiKey | quote}}
+            - name: "PrsConnectorClientApiUri"
+              value: "http://prsconnector.{{ .Values.namespace }}.svc.cluster.local"
+            - name: "Origins__OriginsUri"
+              value: "[\"{{ .Values.webUrlApp }}\",\"{{ .Values.webUrlLmUI }}\",\"{{ .Values.webUrlPs }}\",\"{{ .Values.webUrlAdmin }}\",\"{{ .Values.webUrlFincalc }}\",\"{{ .Values.userExampleSiteWebDomain }}\",\"https://app.shop.samsungfinance.co.uk\",\"https://app.sole.company.samsungfinance.co.uk\"]"
+            - name: "JwtSettings__TokenExpireTimeMinutes"
+              value: "{{ .Values.jwtSettingsTokenExpireTimeMinutes }}"
+            - name: "JwtSettings__RefreshTokenExpireTimeMinutes"
+              value: "{{ .Values.jwtSettingsRefreshTokenExpireTimeMinutes }}"
+            - name: "JwtSettings__UserTokenExpireTimeMinutes"
+              value: "{{ .Values.jwtSettingsUserTokenExpireTimeMinutes }}"
+            - name: "JwtSettings__UserRefreshTokenExpireTimeMinutes"
+              value: "{{ .Values.jwtSettingsUserRefreshTokenExpireTimeMinutes }}"
+            - name: "JwtSettings__Issuer"
+              value: "{{ .Values.jwtSettingsIssuer }}"
+            - name: "JwtSettings__Key"
+              value: "{{ .Values.jwtSettingsKey }}"
+            - name: "AnchorHardCheckUpdateServiceSettings__RetryPeriodInHours"
+              value: "{{ .Values.anchorHardCheckUpdateServiceSettingsRetryPeriodInHours }}"
+            - name: "AnchorHardCheckUpdateServiceSettings__ServiceStartDelayInSeconds"
+              value: "{{ .Values.anchorHardCheckUpdateServiceSettingsServiceStartDelayInSeconds }}"
+            - name: "AnchorHardCheckUpdateServiceSettings__MaxAttemptsCount"
+              value: "{{ .Values.anchorHardCheckUpdateServiceSettingsMaxAttemptsCount }}"
+            - name: "AdyenSettings__ApiUrl"
+              value: "{{ .Values.adyenSettingsApiUrl }}"
+            - name: "AdyenSettings__ApiKey"
+              value: {{ .Values.adyenSettingsApiKey | quote }}
+            - name: "AdyenSettings__Environment"
+              value: "{{ .Values.adyenSettingsEnvironment }}"
+            - name: "AdyenSettings__MerchantAccount"
+              value: "{{ .Values.adyenSettingsMerchantAccount }}"
+            - name: "AdyenSettings__CountryCode"
+              value: "{{ .Values.adyenSettingsCountryCode }}"
+            - name: "AdyenSettings__ShopperLocale"
+              value: "{{ .Values.adyenSettingsShopperLocale }}"
+            - name: "AdyenSettings__HmacKey"
+              value: "{{ .Values.adyenSettingsHmacKey }}"
+            - name: "OneTimePasswordAttemptsSettings__AttemptTimeIncreasingIn"
+              value: "{{ .Values.oneTimePasswordAttemptsSettingsAttemptTimeIncreasingIn }}"
+            - name: "OneTimePasswordAttemptsSettings__OTPAttemptsTime"
+              value: "{{ .Values.oneTimePasswordAttemptsSettingsOTPAttemptsTime }}"
+            - name: "WebDomains__GlowApiPublicDomain"
+              value: "{{ .Values.apiUrlGlow }}"
+            - name: "VerificationCodeSettings__VerificationCodeExpireTimeMinutes"
+              value: "{{ .Values.verificationCodeSettingsVerificationCodeExpireTimeMinutes }}"
+            - name: "EncryptionSettings__Key"
+              value: "{{ .Values.encryptionSettingsKey }}"
+            - name: "TwilioAccountSettings__AccountSid"
+              value: "{{ .Values.twilioAccountSettingsAccountSid }}"
+            - name: "TwilioAccountSettings__AuthToken"
+              value: "{{ .Values.twilioAccountSettingsAuthToken }}"
+            - name: "TwilioAccountSettings__FromNumber"
+              value: "{{ .Values.twilioAccountSettingsFromNumber }}"
+            - name: "AdyenSettings__ReportApiUrl"
+              value: "{{ .Values.adyenSettingsReportApiUrl }}"
+            - name: "AdyenSettings__ReportPassword"
+              value: {{ .Values.adyenSettingsReportPassword | quote }}
+            - name: "AdyenSettings__ReportUserName"
+              value: "{{ .Values.adyenSettingsReportUserName }}"
+            - name: "AddressLoqateFullSearchSettings__IsEnabled"
+              value: "{{ .Values.addressLoqateFullSearchSettingsIsEnabled }}"
+            - name: "WebDomains__MaintenanceDomain"
+              value: "{{ .Values.webDomainsMaintenanceDomain }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__0__ProductName"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings0ProductName }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__0__Offers__0__Upfront"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings0Offers0Upfront }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__0__Offers__0__Term"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings0Offers0Term }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__0__Offers__1__Upfront"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings0Offers1Upfront }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__0__Offers__1__Term"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings0Offers1Term }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__0__AdditionalMinimalOffer"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings0AdditionalMinimalOffer }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__0__IsUpfrontPaymentsInPercentages"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings0IsUpfrontPaymentsInPercentages }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__ProductName"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1ProductName }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__Offers__0__Upfront"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1Offers0Upfront }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__Offers__0__Term"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1Offers0Term }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__Offers__1__Upfront"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1Offers1Upfront }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__Offers__1__Term"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1Offers1Term }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__Offers__2__Upfront"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1Offers2Upfront }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__Offers__2__Term"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1Offers2Term }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__AdditionalMinimalOffer"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1AdditionalMinimalOffer }}"
+            - name: "TristarLoanOffersSettings__ProductsSettings__1__IsUpfrontPaymentsInPercentages"
+              value: "{{ .Values.tristarLoanOffersSettingsProductsSettings1IsUpfrontPaymentsInPercentages }}"
+            - name: "PrsSettings__AllowedIpRanges"
+              value: "{{ .Values.prsSettingsAllowedIpRanges }}"
+            - name: "BlobStorageSettings__AccountKey"
+              value: {{ .Values.loanBlobStorageSettingsAccountKey | quote }}
+            - name: "BlobStorageSettings__AccountName"
+              value: "{{ .Values.loanBlobStorageSettingsAccountName }}"
+            - name: "BlobStorageSettings__ConnectionString"
+              value: "DefaultEndpointsProtocol=https;AccountName={{ .Values.loanBlobStorageSettingsAccountName }};AccountKey={{ .Values.loanBlobStorageSettingsAccountKey }};EndpointSuffix=core.windows.net"
+            - name: "BlobStorageSettings__MaxConnectionRetries"
+              value: "{{ .Values.loanBlobStorageSettingsMaxConnectionRetries }}"
+            - name: "BlobStorageSettings__Domain"
+              value:  "https://{{ .Values.loanBlobStorageSettingsAccountName }}.blob.core.windows.net"
+            - name: "Localization__ApiUrl"
+              value: "{{ .Values.strapiURL }}"
+            - name: "SendGridAccountSettings__ApiKey"
+              value: {{ .Values.sendGridAccountSettingsApiKey | quote }}
+            - name: "SendGridAccountSettings__VerificationKey"
+              value: {{ .Values.sendGridAccountSettingsVerificationKey | quote }}
+            - name: "ProposalQueuedEventSettings__IsProposalQueuedEnabled"
+              value: "{{ .Values.proposalQueuedEventSettingsIsProposalQueuedEnabled }}"
+            - name: "ProposalQueuedEventSettings__IsAnchorResponseCheckEnabled"
+              value: "{{ .Values.proposalQueuedEventSettingsIsAnchorResponseCheckEnabled }}"
+            - name: "ProposalQueuedEventSettings__IsDisabled"
+              value: "{{ .Values.proposalQueuedEventSettingsIsDisabled }}"
+            - name: "VatlayerSettings__ApiKey"
+              value: "{{ .Values.vatlayerSettingsApiKey }}"
+            - name: "VatlayerSettings__UseMocked"
+              value: "{{ .Values.vatlayerSettingsUseMocked }}"
+            - name: "Localization__PublicUrl"
+              value: "{{ .Values.localizationPublicURL }}"
+            - name: "Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__logName"
+              value: "{{ .Values.prodPIILogsWorkspaceLogName }}"
+            - name: "Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__workspaceId"
+              value: "{{ .Values.prodPIILogsWorkspaceID }}"
+            - name: "Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__authenticationId"
+              value: "{{ .Values.prodPIILogsWorkspaceAuthenticationKey }}"
+            - name: "SubmitStageOptions__PrsUpfrontPaymentEnabled"
+              value: "{{ .Values.submitStageOptionsPrsUpfrontPaymentEnabled }}"
+            - name: "CategoriesSettings__BalloonPaymentIgnoredProductCategories__0"
+              value: "{{ .Values.categoriesSettingsBalloonPaymentIgnoredProductCategories0 }}"
+            - name: "CategoriesSettings__BalloonPaymentIgnoredProductCategories__1"
+              value: "{{ .Values.categoriesSettingsBalloonPaymentIgnoredProductCategories1 }}"
+            - name: "CategoriesSettings__BalloonPaymentIgnoredProductCategories__2"
+              value: "{{ .Values.categoriesSettingsBalloonPaymentIgnoredProductCategories2 }}"
+            - name: "LoanManagementClientApiUri"
+              value: "http://loanapi.{{ .Values.namespace }}.svc.cluster.local"
+            - name: "ReSettings__Enabled"
+              value: "{{ .Values.reSettingsEnabled }}"
+            - name: "ReSettings__RabbitMqSettings__Origin"
+              value: "{{ .Values.reSettingsRabbitMqSettingsOrigin }}"
+            - name: "ReSettings__RabbitMqSettings__Configuration__ConsumersCount"
+              value: "{{ .Values.reSettingsRabbitMqSettingsConfigurationConsumersCount }}"
+            - name: "ReSettings__RabbitMqSettings__ExchangeNames__IncomingExchange"
+              value: "{{ .Values.reSettingsRabbitMqSettingsExchangeNamesIncomingExchange }}"
+            - name: "ReSettings__RabbitMqSettings__ExchangeNames__OutgoingExchange"
+              value: "{{ .Values.reSettingsRabbitMqSettingsExchangeNamesOutgoingExchange }}"
+            - name: "ReSettings__RabbitMqSettings__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "ReSettings__RabbitMqSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "ReSettings__RabbitMqSettings__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "ReSettings__RabbitMqSettings__VirtualHost"
+              value: {{ .Values.reSettingsRabbitMqSettingsVirtualHost }}
+            - name: "ReSettings__ScoreVerificationSettings__ApiRule"
+              value: "{{ .Values.reSettingsScoreVerificationSettingsApiRule }}"
+            - name: "ReSettings__ScoreVerificationSettings__ApiRuleRunner"
+              value: "{{ .Values.reSettingsScoreVerificationSettingsApiRuleRunner }}"
+            - name: "ReSettings__ScoreVerificationSettings__ChecksRule"
+              value: "{{ .Values.reSettingsScoreVerificationSettingsChecksRule }}"
+            - name: "ReSettings__ScoreVerificationSettings__ChecksLiveRuleRunner"
+              value: "{{ .Values.reSettingsScoreVerificationSettingsChecksLiveRuleRunner }}"
+            - name: "ReSettings__ScoreVerificationSettings__ChecksTestRuleRunner"
+              value: "{{ .Values.reSettingsScoreVerificationSettingsChecksTestRuleRunner }}"
+            - name: "VerificationCodeSettings__HashTokenSalt"
+              value:  {{ .Values.verificationCodeSettingsHashTokenSalt | quote }}
+            - name: "ServicesSettings__UseGotenbergPdfGenerator"
+              value: "{{ .Values.servicesSettingsUseGotenbergPdfGenerator }}"
+            {{- if eq (.Values.customerName | toString) "ee-uks" }}
+            - name: "ApplicationsCleanerSettings__ApplicationOldInDays"
+              value: "{{ .Values.applicationsCleanerSettingsApplicationOldInDays }}"
+            - name: "ApplicationsCleanerSettings__ApplicationLastUpdateInHours"
+              value: "{{ .Values.applicationsCleanerSettingsApplicationLastUpdateInHours }}"
+            {{- end }}
+            - name: "GotenbergSharpClientOptions__ServiceUrl"
+              value: "{{ .Values.gotenbergSharpClientOptionsServiceUrl }}"  
+            - name: "GotenbergSharpClientOptions__HealthCheckUrl"
+              value: "{{ .Values.gotenbergSharpClientOptionsHealthCheckUrl }}"
+            - name: "WkhtmltopdfGeneratorApiUrl"
+              value: "{{ .Values.wkhtmltopdfGeneratorApiUrl }}"
+            - name: "ApplicationAuthSettings__TokenLifetimeMinutes"
+              value: "{{ .Values.applicationAuthSettingsTokenLifetimeMinutes }}"
+            - name: "ApplicationAuthSettings__RefreshTokenLifetimeMinutes"
+              value: "{{ .Values.applicationAuthSettingsRefreshTokenLifetimeMinutes }}"
+            - name: "ApplicationDataBlobSettings__AccountKey"
+              value: "{{ .Values.iconBlobSettingsAccountKey }}"
+            - name: "ApplicationDataBlobSettings__AccountName"
+              value: "{{ .Values.iconBlobSettingsAccountName }}"
+            - name: "ApplicationDataBlobSettings__ConnectionString"
+              value: "DefaultEndpointsProtocol=https;AccountName={{ .Values.iconBlobSettingsAccountName }};AccountKey={{ .Values.iconBlobSettingsAccountKey }};EndpointSuffix=core.windows.net"
+            - name: "ApplicationDataBlobSettings__Domain"
+              value: "{{ .Values.iconBlobSettingsDomain }}"
+            - name: "ApplicationDataBlobSettings__MaxConnectionRetries"
+              value: "{{ .Values.applicationDataBlobSettingsMaxConnectionRetries }}"
+            - name: "ApplicationDataBlobStorageSettings__ContainerName"
+              value: "{{ .Values.applicationDataBlobStorageSettingsContainerName }}"
+            - name: "ApplicationDataBlobStorageSettings__FolderNames__Agreements"
+              value: "{{ .Values.applicationDataBlobStorageSettingsFolderNamesAgreements }}"
+            - name: "ApplicationDataBlobStorageSettings__EnvSpecified"
+              value: "{{ .Values.namespace }}" 
+            - name: "ApplicationDataBlobStorageSettings__FolderNames__DocumentReviews"
+              value: "{{ .Values.applicationDataBlobStorageSettingsFolderNamesDocumentReviews }}"
+            - name: "AgreementNumberGeneratorClientSettings__IsEnabled"
+              value: "{{ .Values.agreementNumberGeneratorClientSettingsIsEnabled }}"
+            - name: "AgreementNumberGeneratorClientApiUri"
+              value: "http://agreementnumbergenerator.{{ .Values.namespace }}.svc.cluster.local"
+            - name: "AnchorHardCheckUpdateServiceSettings__RetryPeriodInMinutes"
+              value: "60"
+            - name: "AnchorProposalInitializeSettings__ServiceRetryPeriodInMinutes"
+              value: "1"
+            - name: "AnchorProposalInitializeSettings__FailRetryPeriodInMinutes"
+              value: "60"
+            - name: "AnchorProposalInitializeSettings__MaxAttemptsCount"
+              value: "48"
+            - name: "AnchorProposalInitializeSettings__ServiceStartDelayInSeconds"
+              value: "60"
+            {{- if ne (.Values.glApplicationLinkSettingsResumeLinkExpirationPeriod | toString ) "$(glApplicationLinkSettingsResumeLinkExpirationPeriod)" }}
+            - name: "ApplicationLinkSettings__ResumeLinkExpirationPeriod"
+              value: "{{ .Values.glApplicationLinkSettingsResumeLinkExpirationPeriod }}"
+            {{ end }}
+            {{- if ne (.Values.glApplicationLinkSettingsStartLinkExpirationPeriodInHours | toString ) "$(glApplicationLinkSettingsStartLinkExpirationPeriodInHours)" }}
+            - name: "ApplicationLinkSettings__StartLinkExpirationPeriodInHours"
+              value: "{{ .Values.glApplicationLinkSettingsStartLinkExpirationPeriodInHours }}"
+            {{ end }}
+         # livenessProbe:
+          #  httpGet:
+         #     path: /
+         #     port: http
+         # readinessProbe:
+         #   httpGet:
+         #     path: /
+         #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

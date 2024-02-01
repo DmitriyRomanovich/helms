@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-adyen-service.fullname" . }}
+  labels:
+    {{- include "cp-adyen-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-adyen-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-adyen-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-adyen-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbCPAdyenService }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Keepalive=1;Password={{ .Values.dbPassword }}"
+            {{- if eq (.Values.isProduction | toString) "true" }}
+            - name: "AdyenSettings__LivePrefix"
+              value: "{{ .Values.cpAdyenSettingsLivePrefix }}"
+            {{ else }}
+            - name: "AdyenSettings__LivePrefix"
+              value: ""
+            {{ end }}
+            - name: "AdyenSettings__ApiUrl"
+              value: "{{ .Values.cpAdyenSettingsApiUrl }}"
+            - name: "AdyenSettings__ApiKey"
+              value: {{ .Values.cpAdyenSettingsApiKey | quote }}
+            - name: "AdyenSettings__HmacKey"
+              value: {{ .Values.cpAdyenSettingsHmacKey | quote }}
+            - name: "AdyenSettings__ClientKey"
+              value: {{ .Values.cpAdyenClientKey | quote }}
+            - name: "AdyenSettings__MerchantAccount"
+              value: "{{ .Values.cpAdyenSettingsMerchantAccount }}"
+            - name: "AdyenSettings__Environment"
+              value: "{{ .Values.cpAdyenSettingsEnvironment }}"
+            {{- if ne (.Values.cpAdyenSettingsLinkExpirationTime | toString) "$(cpAdyenSettingsLinkExpirationTime)" }}
+            - name: "AdyenSettings__LinkExpirationTime"
+              value: "{{ .Values.cpAdyenSettingsLinkExpirationTime }}"
+            {{ else }}
+            - name: "AdyenSettings__LinkExpirationTime"
+              value: "15"
+            {{ end }}
+            - name: "AdyenUser__UserId"
+              value: "{{ .Values.cpAdyenUserUserId }}"
+            - name: "AdyenUser__Password"
+              value: {{ .Values.cpAdyenUserPassword | quote }}
+            - name: "RabbitMqSettings__HostName"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqSettings__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqSettings__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "AzureAd__Instance"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com"
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdAdyenService }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.azureADB2COptionsClientSecretAdyenService | quote }}
+            - name: "ClientOrigin__Urls__0"
+              value: "http://cp-adyen-proxy.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "ClientOrigin__Urls__1"
+              value: "http://cp-apigw.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "ClientOrigin__Urls__2"
+              value: "http://cp-email-service.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "ClientOrigin__Urls__3"
+              value: "{{ .Values.webUrlCPUI }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

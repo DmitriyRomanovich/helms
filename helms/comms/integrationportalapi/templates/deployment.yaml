@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "integrationportalapi.fullname" . }}
+  labels:
+    {{- include "integrationportalapi.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "integrationportalapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "integrationportalapi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "integrationportalapi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if regexMatch "dev" .Values.namespace }}  
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Development"
+            {{ end }}
+            - name: "ConnectionStrings__comms_integrations"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbCommsIntegrationPortal }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: "AzureAd__Instance"
+              value: "https://login.microsoftonline.com/" 
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.integrationportalapiAzureAdDomain }}"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.integrationportalapiAzureAdClientId }}"
+            - name: "AzureAd__TenantId"
+              value: "{{ .Values.integrationportalapiAzureAdTenantId }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.integrationportalapiAzureAdClientSecret | quote }}
+            - name: "GroupsCheckRequirement"
+              value: "{{ .Values.integrationportalapiGroupsCheckRequirement }}"            
+            {{- if eq (.Values.isProduction | toString) "true" }}
+            - name: "JwtSettings__Key"
+              value: "{{ .Values.commsJwtSettingsKey }}"
+            {{ end }}
+            - name: "NotificationRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "NotificationRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"                 
+            - name: "NotificationRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "NotificationRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "SvcRabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "SvcRabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}" 
+            - name: "SvcRabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "SvcRabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "TechnicalAuthSettings__Username"
+              value: "{{ .Values.integrationPortalSettingsUsername }}"
+            - name: "TechnicalAuthSettings__Password"
+              value: "{{ .Values.integrationPortalSettingsPassword }}"   
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

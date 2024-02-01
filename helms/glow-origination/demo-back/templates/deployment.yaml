@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "demo-back.fullname" . }}
+  labels:
+    {{- include "demo-back.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "demo-back.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "demo-back.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "demo-back.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: "ASPNETCORE_FORWARDEDHEADERS_ENABLED"
+              value: "true"
+            - name: "ForwardedForHeaderName__Value"
+              value: "{{ .Values.forwardedForHeaderNameValue }}"
+            - name: "GlowClient__Uri"
+              value: "http://glowapi.{{ .Values.namespace }}.svc.cluster.local"
+            - name: "DomainSettings__DomainUrl"
+              value: "http://demo-back.{{ .Values.namespace }}.svc.cluster.local"
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseAdmin }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: RabbitMqConfig__Hostname
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: RabbitMqConfig__UserName
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: RabbitMqConfig__Password
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "JwtSettings__AzureAdDisabled"
+              value:  "{{ .Values.jwtSettingsAzureAdDisabled }}"
+            - name: "Jwt__AzureAdDisabled"
+              value:  "{{ .Values.jwtAzureAdDisabled }}"
+            - name: SessionProposalCodesSettings__0__Type
+              value: "{{ .Values.demoBackSessionProposalCodesSettings0Type }}"
+            - name: SessionProposalCodesSettings__0__ProposalCodes__0
+              value: "{{ .Values.demoBackSessionProposalCodesSettings0ProposalCodes0 }}"
+            - name: SessionProposalCodesSettings__1__Type
+              value: "{{ .Values.demoBackSessionProposalCodesSettings1Type }}"
+            - name: SessionProposalCodesSettings__1__ProposalCodes__0
+              value: "{{ .Values.demoBackSessionProposalCodesSettings1ProposalCodes0 }}"
+            - name: SessionProposalCodesSettings__2__Type
+              value: "{{ .Values.demoBackSessionProposalCodesSettings2Type }}"
+            - name: SessionProposalCodesSettings__2__ProposalCodes__0
+              value: "{{ .Values.demoBackSessionProposalCodesSettings2ProposalCodes0 }}"
+            - name: SessionProposalCodesSettings__3__Type
+              value: "{{ .Values.demoBackSessionProposalCodesSettings3Type }}"
+            - name: SessionProposalCodesSettings__3__ProposalCodes__0
+              value: "{{ .Values.demoBackSessionProposalCodesSettings3ProposalCodes0 }}"
+            - name: SessionProposalCodesSettings__4__Type
+              value: "{{ .Values.demoBackSessionProposalCodesSettings4Type }}"
+            - name: SessionProposalCodesSettings__4__ProposalCodes__0
+              value: "{{ .Values.demoBackSessionProposalCodesSettings4ProposalCodes0 }}"
+            - name: "SessionProposalCodesSettings__5__Type"
+              value: "{{ .Values.demoBackSessionProposalCodesSettings5Type }}"
+            - name: "SessionProposalCodesSettings__5__ProposalCodes__0"
+              value: "{{ .Values.demoBackSessionProposalCodesSettings5ProposalCodes0 }}"
+            - name: "GlowClient__Credentials__Prs__ClientId" 
+              value: "{{ .Values.glowClientCredentialsPrsClientId }}"
+            - name: "GlowClient__Credentials__Prs__ClientSecret"
+              value: {{ .Values.glowClientCredentialsPrsClientSecret | quote }}
+            - name: "GlowClient__Credentials__Com__ClientId" 
+              value: "{{ .Values.glowClientCredentialsComClientId }}"
+            - name: "GlowClient__Credentials__Com__ClientSecret"
+              value: {{ .Values.glowClientCredentialsComClientSecret | quote }}
+            {{- if eq (.Values.customerName | toString) "ee-uks" }}
+            - name: "GlowClient__Credentials__Ee__ClientId"
+              value: "{{ .Values.glowClientCredentialsEeClientId }}"
+            - name: "GlowClient__Credentials__Ee__ClientSecret"
+              value: {{ .Values.glowClientCredentialsEeClientSecret | quote }}
+            {{- end }}
+            - name: BlobSettings__MaxConnectionRetries
+              value: "{{ .Values.demoBackBlobSettingsMaxConnectionRetries }}"
+            - name: BlobSettings__ConnectionString
+              value: "DefaultEndpointsProtocol=https;AccountName={{ .Values.iconBlobSettingsAccountName }};AccountKey={{ .Values.iconBlobSettingsAccountKey }};EndpointSuffix=core.windows.net" 
+            - name: BlobSettings__AccountKey
+              value: "{{ .Values.iconBlobSettingsAccountKey }}"
+            - name: BlobSettings__AccountName
+              value: "{{ .Values.iconBlobSettingsAccountName }}"
+            - name: BlobSettings__Domain
+              value: "{{ .Values.iconBlobSettingsStaticSiteDomain }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.demoBackAzureAdClientSecret | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

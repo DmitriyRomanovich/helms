@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-phone-verification.fullname" . }}
+  labels:
+    {{- include "cp-phone-verification.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-phone-verification.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-phone-verification.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-phone-verification.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: ConnectionStrings__RedisConnectionString
+              value: "redis-master.{{ .Values.cpNamespace }}.svc:6379,password=secretpassword,abortConnect=false"
+            - name: "TwilioAccountSettings__AccountSid"
+              value: {{ .Values.twilioAccountSettingsAccountSid | quote }}
+            - name: "TwilioAccountSettings__AuthToken"
+              value: {{ .Values.twilioAccountSettingsAuthToken | quote }}
+            - name: "TwilioAccountSettings__FromNumber"
+              value: "+{{ .Values.twilioAccountSettingsFromNumber }}"
+            - name: "VerificationCodeSettings__HashTokenSalt"
+              value: {{ .Values.verificationCodeSettingsHashTokenSalt | quote }}
+            - name: "RabbitMqSettings__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqSettings__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqSettings__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"                                
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

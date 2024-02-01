@@ -1,0 +1,396 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "loanapi.fullname" . }}
+  labels:
+    {{- include "loanapi.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "loanapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "loanapi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "loanapi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: "ASPNETCORE_FORWARDEDHEADERS_ENABLED"
+              value: "true"
+            - name: "ForwardedForHeaderName__Value"
+              value: "X-Real-IP"
+            - name: "GroupsCheckRequirement"
+              value: {{ .Values.lmGroupsCheckRequirement }}
+            - name: "AzureAd__Instance"
+              value: "https://login.microsoftonline.com/"
+            - name: "AzureAd__Domain"
+              value: "glowgfs.com"
+            - name: "AzureAd__ClientId"
+              value: "e625ccd2-a468-43c4-9b1a-207f72a78ee6"
+            - name: "AzureAd__TenantId"
+              value: "c5360f6f-0bb5-46b9-a278-75619bfd2434"
+            - name: "AzureAd__ClientSecret"
+              value: "DQT8Q~fbIU9AVf5jENyiY-6~T2GA4s18uxgOubxO"
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseApi }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: ConnectionStrings__historyDb
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseHistory }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: "ConnectionStrings__lmDb"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseLM }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: "RabbitMqConfig__Hostname"
+              value: {{ .Values.rabbitmqHost }}
+            - name: "RabbitMqConfig__UserName"
+              value: {{ .Values.rabbitmqUser }}
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: {{ .Values.rabbitmqVHost }}
+            - name: BlobStorageSettings__AccountKey
+              value: {{ .Values.loanBlobStorageSettingsAccountKey }}
+            - name: BlobStorageSettings__AccountName
+              value: {{ .Values.loanBlobStorageSettingsAccountName }}
+            - name: BlobStorageSettings__ConnectionString
+              value: "DefaultEndpointsProtocol=https;AccountName={{ .Values.loanBlobStorageSettingsAccountName }};AccountKey={{ .Values.loanBlobStorageSettingsAccountKey }};EndpointSuffix=core.windows.net"
+            - name: BlobStorageSettings__MaxConnectionRetries
+              value: "2"
+            - name: Localization__ApiUrl
+              value: {{ .Values.strapiURL }}
+            - name: "SendGridAccountSettings__ApiKey"
+              value: {{ .Values.sendGridAccountSettingsApiKey | quote }}
+            - name: "SendGridAccountSettings__From"
+              value: "{{ .Values.sendGridAccountSettingsFrom }}"
+            {{- if ne .Values.sendGridAccountSettingsFromName "$(sendGridAccountSettingsFromName)" }}
+            - name: "SendGridAccountSettings__FromName"
+              value: "{{ .Values.sendGridAccountSettingsFromName }}"  
+            {{ end }}
+            - name: EmailTemplatesSettings__Values__prs__0__EmailType
+              value: "ApplicationDeclinedKyc"
+            - name: EmailTemplatesSettings__Values__prs__0__TemplateId
+              value: "14"
+            - name: EmailTemplatesSettings__Values__prs__1__EmailType
+              value: "ApplicationDeclinedTransunion"
+            - name: EmailTemplatesSettings__Values__prs__1__TemplateId
+              value: "15"
+            - name: EmailTemplatesSettings__Values__prs__2__EmailType
+              value: "LoanFullCancelled"
+            - name: EmailTemplatesSettings__Values__prs__2__TemplateId
+              value: "16"
+            - name: EmailTemplatesSettings__Values__prs__3__EmailType
+              value: "LoanPartiallyCancelled"
+            - name: EmailTemplatesSettings__Values__prs__3__TemplateId
+              value: "17"
+            - name: EmailTemplatesSettings__Values__prs__4__EmailType
+              value: "UpfrontPaymentRefund"
+            - name: EmailTemplatesSettings__Values__prs__4__TemplateId
+              value: "18"
+            - name: EmailTemplatesSettings__Values__prs__5__EmailType
+              value: "ApplicationPaused"
+            - name: EmailTemplatesSettings__Values__prs__5__TemplateId
+              value: "19"
+            - name: EmailTemplatesSettings__Values__prs__6__EmailType
+              value: "ApplicationReviewSuccess"
+            - name: EmailTemplatesSettings__Values__prs__6__TemplateId
+              value: "20"
+            - name: EmailTemplatesSettings__Values__prs__7__EmailType
+              value: "OpenMitekOnMobileDevice"
+            - name: EmailTemplatesSettings__Values__prs__7__TemplateId
+              value: "21"
+            - name: EmailTemplatesSettings__Values__prs__8__EmailType
+              value: "ApplicationCompleted"
+            - name: EmailTemplatesSettings__Values__prs__8__TemplateId
+              value: "22"
+            - name: EmailTemplatesSettings__Values__prs__9__EmailType
+              value: "ApplicationPausedDocumentVerification"
+            - name: EmailTemplatesSettings__Values__prs__9__TemplateId
+              value: "23"
+            - name: EmailTemplatesSettings__Values__com__0__EmailType
+              value: "ApplicationDeclinedKyc"
+            - name: EmailTemplatesSettings__Values__com__0__TemplateId
+              value: "14"
+            - name: EmailTemplatesSettings__Values__com__1__EmailType
+              value: "ApplicationDeclinedTransunion"
+            - name: EmailTemplatesSettings__Values__com__1__TemplateId
+              value: "15"
+            - name: EmailTemplatesSettings__Values__com__2__EmailType
+              value: "LoanFullCancelled"
+            - name: EmailTemplatesSettings__Values__com__2__TemplateId
+              value: "16"
+            - name: EmailTemplatesSettings__Values__com__3__EmailType
+              value: "LoanPartiallyCancelled"
+            - name: EmailTemplatesSettings__Values__com__3__TemplateId
+              value: "17"
+            - name: EmailTemplatesSettings__Values__com__4__EmailType
+              value: "UpfrontPaymentRefund"
+            - name: EmailTemplatesSettings__Values__com__4__TemplateId
+              value: "18"
+            - name: EmailTemplatesSettings__Values__com__5__EmailType
+              value: "ApplicationPaused"
+            - name: EmailTemplatesSettings__Values__com__5__TemplateId
+              value: "19"
+            - name: EmailTemplatesSettings__Values__com__6__EmailType
+              value: "ApplicationReviewSuccess"
+            - name: EmailTemplatesSettings__Values__com__6__TemplateId
+              value: "20"
+            - name: EmailTemplatesSettings__Values__com__7__EmailType
+              value: "OpenMitekOnMobileDevice"
+            - name: EmailTemplatesSettings__Values__com__7__TemplateId
+              value: "21"
+            - name: EmailTemplatesSettings__Values__com__8__EmailType
+              value: "ApplicationCompleted"
+            - name: EmailTemplatesSettings__Values__com__8__TemplateId
+              value: "22"
+            - name: EmailTemplatesSettings__Values__com__9__EmailType
+              value: "ApplicationPausedDocumentVerification"
+            - name: EmailTemplatesSettings__Values__com__9__TemplateId
+              value: "23"
+            - name: EmailTemplatesSettings__Values__preOrder__0__EmailType
+              value: "ApplicationPaused"
+            - name: EmailTemplatesSettings__Values__preOrder__0__TemplateId
+              value: "24"
+            - name: EmailTemplatesSettings__Values__preOrder__1__EmailType
+              value: "ApplicationReviewSuccess"
+            - name: EmailTemplatesSettings__Values__preOrder__1__TemplateId
+              value: "25"
+            - name: EmailTemplatesSettings__Values__preOrder__2__EmailType
+              value: "ApplicationPausedDocumentVerification"
+            - name: EmailTemplatesSettings__Values__preOrder__2__TemplateId
+              value: "26"
+            - name: EmailTemplatesSettings__Values__preOrder__3__EmailType
+              value: "OpenMitekOnMobileDevice"
+            - name: EmailTemplatesSettings__Values__preOrder__3__TemplateId
+              value: "27"
+            - name: EmailTemplatesSettings__Values__preOrder__4__EmailType
+              value: "ApplicationDeclinedKyc"
+            - name: EmailTemplatesSettings__Values__preOrder__4__TemplateId
+              value: "28"
+            - name: EmailTemplatesSettings__Values__preOrder__5__EmailType
+              value: "ApplicationDeclinedTransunion"
+            - name: EmailTemplatesSettings__Values__preOrder__5__TemplateId
+              value: "29"
+            - name: EmailTemplatesSettings__Values__preOrder__6__EmailType
+              value: "ApplicationCompleted"
+            - name: EmailTemplatesSettings__Values__preOrder__6__TemplateId
+              value: "30"
+            - name: EmailTemplatesSettings__Values__preOrder__7__EmailType
+              value: "StartApplication"
+            - name: EmailTemplatesSettings__Values__preOrder__7__TemplateId
+              value: "31"
+            - name: EmailTemplatesSettings__Values__preOrder__8__EmailType
+              value: "DeliveryVerification"
+            - name: EmailTemplatesSettings__Values__preOrder__8__TemplateId
+              value: "32"
+            {{- if eq (.Values.customerName | toString) "samsung-uks" }}
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__0__MerchantAccount
+              value: GlowFinancialServicesLtdECOM
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__0__Variant
+              value: com
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__0__CountryCode
+              value: GB
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__0__ShopperLocale
+              value: en_US
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__1__MerchantAccount
+              value: GlowFinancialServicesLtdECOM
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__1__Variant
+              value: sole_trader
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__1__CountryCode
+              value: GB
+            - name: AdyenMerchantSettings__Values__b757fa1d-36e4-4a46-8440-5034cbacee72__1__ShopperLocale
+              value: en_US
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__MerchantAccount
+              value: GlowFinancialServicesLtdECOM
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__Variant
+              value: com
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__CountryCode
+              value: GB
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__ShopperLocale
+              value: en_US
+            - name: AdyenMerchantSettings__Values__deca48ff-9c0e-4889-87fd-5cec0b6d46c7__0__MerchantAccount
+              value: GlowFinancialServicesLtdECOM
+            - name: AdyenMerchantSettings__Values__deca48ff-9c0e-4889-87fd-5cec0b6d46c7__0__Variant
+              value: preorder
+            - name: AdyenMerchantSettings__Values__deca48ff-9c0e-4889-87fd-5cec0b6d46c7__0__CountryCode
+              value: GB
+            - name: AdyenMerchantSettings__Values__deca48ff-9c0e-4889-87fd-5cec0b6d46c7__0__ShopperLocale
+              value: en_US
+            {{ end }}
+            {{- if eq (.Values.customerName | toString) "samsung-aue" }}
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__MerchantAccount
+              value: GlowFinancialServicesLtdECOM
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__Variant
+              value: com
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__CountryCode
+              value: GB
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__ShopperLocale
+              value: en_US
+            {{ end }}
+            {{- if eq (.Values.customerName | toString) "ee-uks" }}
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__MerchantAccount
+              value: GlowFinancialServicesLtdECOM
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__Variant
+              value: com
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__CountryCode
+              value: GB
+            - name: AdyenMerchantSettings__Values__c5e583a0-9f7b-498e-a618-492e20e84815__0__ShopperLocale
+              value: en_US
+            {{- end }}
+            - name: ServicesSettings__TwillioSmsSenderUseMocked
+              value: "false"
+            - name: ServicesSettings__VerificationCodeGeneratorUseMocked
+              value: "false"
+            - name: ServicesSettings__SendGridEmailSenderUseMocked
+              value: "false"
+            - name: ServicesSettings__UseOutlookEmailSender
+              value: "false"
+            - name: CategoriesSettings__BalloonPaymentIgnoredProductCategories__0
+              value: "Insurance"
+            - name: CategoriesSettings__BalloonPaymentIgnoredProductCategories__1
+              value: "Delivery Charges"
+            - name: CategoriesSettings__BalloonPaymentIgnoredProductCategories__2
+              value: "Samsung Care+"
+            - name: "BlobStorageSettings__Domain"
+              value: "https://{{ .Values.loanBlobStorageSettingsAccountName }}.blob.core.windows.net"
+            - name: "VerificationCodeSettings__HashTokenSalt"
+              value:  {{ .Values.verificationCodeSettingsHashTokenSalt | quote }}
+            - name: ServicesSettings__UseGotenbergPdfGenerator
+              value: "false"
+            - name: "GotenbergSharpClientOptions__ServiceUrl"
+              value: "{{ .Values.gotenbergSharpClientOptionsServiceUrl }}"    
+            - name: "GotenbergSharpClientOptions__HealthCheckUrl"
+              value: "{{ .Values.gotenbergSharpClientOptionsHealthCheckUrl }}"
+            - name: "WkhtmltopdfGeneratorApiUrl"
+              value: "{{ .Values.wkhtmltopdfGeneratorApiUrl }}"
+            - name: "CommercialNameMigration__Samsung_InitialLaunch"
+              value: "Samsung Finance"
+            - name: "CommercialNameMigration__PRS_InitialV2Launch"
+              value: "PRS v2 (Pre-Order)"
+            - name: "CommercialNameMigration__SuperSaver"
+              value: "Samsung Flex"
+            - name: "CommercialNameMigration__SLT_LOAN_PRODUCT"
+              value: "Samsung SMB Sole Trader"
+            - name: "CommercialNameMigration__Demo_Live"
+              value: "Samsung Finance"
+            - name: "CommercialNameMigration__Samsung_Current"
+              value: "Samsung Finance"
+            - name: "CommercialNameMigration__Pre_order_copy"
+              value: "PRS v2 (Pre-Order)"
+            - name: "CommercialNameMigration__PRS_Current"
+              value: "PRS v2 (Pre-Order)"
+            - name: "CommercialNameMigration__Copy_ST-flow"
+              value: "Samsung SMB Sole Trader"
+            - name: "CommercialNameMigration__PRS_InitialLaunch"
+              value: "PRS v1"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__0__ProductId"
+              value: "05dd442c-466f-47af-9023-f7069c11d435"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__0__VersionA"
+              value: "glow-modules-idv-online-sdk-v1.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__1__ProductId"
+              value: "151e1233-e640-4555-b436-63804a621e09"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__1__VersionA"
+              value: "glow-modules-idv-online-sdk-v2.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__2__ProductId"
+              value: "6d68578c-a798-49fa-9d7b-2fd678551ac4"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__2__VersionA"
+              value: "glow-modules-idv-online-sdk-v1.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__3__ProductId"
+              value: "1d397319-8870-47f8-809f-0fa990c5131b"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__3__VersionA"
+              value: "glow-modules-idv-online-sdk-v1.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__4__ProductId"
+              value: "fc0bfed9-f152-4f25-b19f-e8397263a12b"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__4__VersionA"
+              value: "glow-modules-idv-online-sdk-v1.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__5__ProductId"
+              value: "45fe80ae-1a08-414b-9db2-271151e8e03c"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__5__VersionA"
+              value: "glow-modules-idv-online-sdk-v1.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__6__ProductId"
+              value: "a7d91930-dac3-4de5-9f22-457cb87769ec"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__6__VersionA"
+              value: "glow-modules-idv-online-sdk-v2.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__7__ProductId"
+              value: "21f30fe3-2c31-4c6a-9d7f-871c189814fa"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__7__VersionA"
+              value: "glow-modules-idv-online-sdk-v2.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__8__ProductId"
+              value: "7772376d-4b8f-4163-b436-70184e029de3"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__8__VersionA"
+              value: "glow-modules-idv-online-sdk-v2.0.0"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__9__ProductId"
+              value: "c5dd5c3b-26cb-4fd0-bb7d-6f1daf91cd91"
+            - name: "DefaultDocumentVerificationComponentVersionConfigurationSettings__9__VersionA"
+              value: "glow-modules-idv-shop-sdk-v1.0.0"
+            - name: "AgreementNumberPrefixMigration__PRS_Current"
+              value: "04"
+            - name: "AgreementNumberPrefixMigration__PRS_InitialLaunch"
+              value: "02"
+            - name: "AgreementNumberPrefixMigration__Demo_Live"
+              value: "01"
+            - name: "AgreementNumberPrefixMigration__PRS_PreAPR_20230205"
+              value: "04"
+            - name: "AgreementNumberPrefixMigration__Samsung_InitialLaunch"
+              value: "01"
+            - name: "AgreementNumberPrefixMigration__PRS_InitialV2Launch"
+              value: "04"
+            - name: "AgreementNumberPrefixMigration__SLT_LOAN_PRODUCT"
+              value: "03"
+            - name: "AgreementNumberPrefixMigration__SamsungCurrent"
+              value: "01"
+            - name: "AgreementNumberPrefixMigration__SamsungFinainceEnd25052023"
+              value: "01"
+            - name: "AgreementNumberPrefixMigration__SuperSaver_FF"
+              value: "05"
+            - name: "AgreementNumberPrefixMigration__SuperSaver"
+              value: "05"
+            {{- if eq (.Values.isProduction | toString) "false" }}
+            - name: "InsertSoleTraderEmailConfigSql"
+              value: ""
+            - name: "InsertSuperSaverEmailConfigSql"
+              value: ""
+            {{ end }}
+         # livenessProbe:
+          #  httpGet:
+         #     path: /
+         #     port: http
+         # readinessProbe:
+         #   httpGet:
+         #     path: /
+         #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

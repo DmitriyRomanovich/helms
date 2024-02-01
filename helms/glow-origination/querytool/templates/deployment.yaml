@@ -1,0 +1,199 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "querytool.fullname" . }}
+  labels:
+    {{- include "querytool.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "querytool.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "querytool.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "querytool.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+      - configMap:
+          name: ui-config-querytool
+        name: config-volume
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+          - mountPath: /app/query-tool/build/configs/config.js
+            name: config-volume
+            subPath: config.js
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: "ASPNETCORE_FORWARDEDHEADERS_ENABLED"
+              value: "true"
+            - name: "ForwardedForHeaderName__Value"
+              value: "{{ .Values.forwardedForHeaderNameValue }}"
+            - name: "GroupsCheckRequirement"
+              value: "{{ .Values.qtGroupsCheckRequirement }}"
+            - name: "AzureAd__Instance"
+              value: "https://login.microsoftonline.com/"
+            - name: "AzureAd__Domain"
+              value: "glowgfs.com"
+            - name: "AzureAd__ClientId"
+              value: "e625ccd2-a468-43c4-9b1a-207f72a78ee6"
+            - name: "AzureAd__TenantId"
+              value: "c5360f6f-0bb5-46b9-a278-75619bfd2434"
+            - name: "AzureAd__ClientSecret"
+              value: "udG7Q~XH4SFIcZNq~5kReh0hTpKWQ75Tcvs4i"
+            - name: "ConnectionStrings__glowDb"
+              value: "Server={{ .Values.dBreplicaHost }}; Port=5432; Database={{ .Values.dbDatabaseApi }}; Userid={{ .Values.dBUserReplica }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPasswordReplica }}"
+            - name: ConnectionStrings__historyDb
+              value: "Server={{ .Values.dBreplicaHost }}; Port=5432; Database={{ .Values.dbDatabaseHistory }}; Userid={{ .Values.dBUserReplica }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPasswordReplica }}"
+            - name: ConnectionStrings__customerRecordDb
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseCustomerRecord }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"           
+            - name: "ConnectionStrings__lmDb"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseLM }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: QueryToolGroups__1bd91bad-a37b-4980-a97e-9ab6f87824e1__Restrictions
+              value: None
+            - name: QueryToolGroups__e7d63c99-f547-4431-811d-abeea31feee5__Restrictions
+              value: HideIdVerification,HideRisk,HideSentinelCollection,HideCreditDecision,HideUpfrontPayment,HideBusinessFullInformation
+            - name: QueryToolGroups__96559c9b-b02a-4abd-adb3-9cd6c304a10d__ClientId
+              value: deca48ff-9c0e-4889-87fd-5cec0b6d46c7
+            - name: QueryToolGroups__38d381e9-396c-461d-a5e8-f348ab88f78f__ClientId
+              value: b757fa1d-36e4-4a46-8440-5034cbacee72
+            - name: QueryToolGroups__649584d8-ce70-4a7c-a565-55e9c90135b9__Features
+              value: OtpAuth
+            - name: QueryToolGroups__14c4dc6c-05f4-451f-82b7-7732d377f487__Features
+              value: UpdateAnchorStatus
+            - name: QueryToolGroups__295cf4f5-3be9-4b45-95a2-e71021d67e2a__Features
+              value: ViewLoanOutcome
+            - name: QueryToolGroups__ffe88886-5ade-450f-be6f-fa3e09e4bd85__Features
+              value: ResendLoanOutcome
+            - name: ServicesSettings__TwillioSmsSenderUseMocked
+              value: 'false'
+            - name: ServicesSettings__VerificationCodeGeneratorUseMocked
+              value: 'false'
+            - name: ServicesSettings__SendGridEmailSenderUseMocked
+              value: 'false'
+            - name: ServicesSettings__UseOutlookEmailSender
+              value: 'false'
+            - name: TwilioAccountSettings__AccountSid
+              value: "{{ .Values.twilioAccountSettingsAccountSid }}"
+            - name: TwilioAccountSettings__AuthToken
+              value: "{{ .Values.twilioAccountSettingsAuthToken }}"
+            - name: TwilioAccountSettings__FromNumber
+              value: "{{ .Values.twilioAccountSettingsFromNumber }}"
+            - name: SendGridAccountSettings__From
+              value: "{{ .Values.sendGridAccountSettingsFrom }}"
+            {{- if ne .Values.sendGridAccountSettingsFromName "$(sendGridAccountSettingsFromName)" }}
+            - name: "SendGridAccountSettings__FromName"
+              value: "{{ .Values.sendGridAccountSettingsFromName }}"  
+            {{ end }}
+            - name: "AnchorSettings__ProposalsEndpoint__EndpointAddress"
+              value: "{{ .Values.anchorSettingsProposalsEndpointEndpointAddress }}"
+            - name: "AnchorSettings__ProposalsEndpoint__Username"
+              value: "{{ .Values.anchorSettingsProposalsEndpointUsername }}"
+            - name: "AnchorSettings__ProposalsEndpoint__Password"
+              value: "{{ .Values.anchorSettingsProposalsEndpointPassword }}"
+            - name: "AnchorSettings__ProposalsEndpoint__Account"
+              value: "{{ .Values.anchorSettingsProposalsEndpointAccount }}"
+            - name: "AnchorSettings__CollectionsEndpoint__EndpointAddress"
+              value: "{{ .Values.anchorSettingsCollectionsEndpointEndpointAddress }}"
+            - name: "AnchorSettings__CollectionsEndpoint__Username"
+              value: "{{ .Values.anchorSettingsCollectionsEndpointUsername }}"
+            - name: "AnchorSettings__CollectionsEndpoint__Password"
+              value: "{{ .Values.anchorSettingsCollectionsEndpointPassword }}"
+            - name: "AnchorSettings__CollectionsEndpoint__Account"
+              value: "{{ .Values.anchorSettingsCollectionsEndpointAccount }}"
+            - name: "AnchorSettings__VerboseMode"
+              value: "true"
+            - name: "AnchorSettings__MaxProposalUpdateWaitingSeconds"
+              value: "60"
+            - name: "AnchorSettings__UseMocked"
+              value: "false"
+            - name: "SendGridAccountSettings__ApiKey"
+              value: "{{ .Values.sendGridAccountSettingsApiKey }}"
+            - name: Localization__ApiUrl
+              value: "{{ .Values.strapiURL }}"
+            - name: Localization__RootFolder
+              value: Localization
+            - name: Localization__FilesExtension
+              value: .json
+            - name: Localization__Identifier
+              value: glowauthor@strapi.io
+            - name: Localization__Password
+              value: sCWnJ~%Baj#e
+            - name: Localization__CachedTokenLifetimeInSeconds
+              value: "60"
+            - name: Localization__CachedLocalesListLifetimeInSeconds
+              value: "86400"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__logName
+              value: "{{ .Values.prodPIILogsWorkspaceLogName }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__workspaceId
+              value: "{{ .Values.prodPIILogsWorkspaceID }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__authenticationId
+              value: "{{ .Values.prodPIILogsWorkspaceAuthenticationKey }}"
+            - name: LoanManagementClientApiUri
+              value: "http://loanapi.{{ .Values.namespace }}.svc.cluster.local"
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "LoqateSettings__AddressVerificationApiKey"
+              value: "{{ .Values.loqateSettingsAddressVerificationApiKey }}"
+            - name: "LoqateSettings__UseMockedVerificationService"
+              value: "{{ .Values.loqateSettingsUseMockedVerificationService }}"
+            - name: "LoqateSettings__AddressVerificationApiUri"
+              value: "{{ .Values.loqateSettingsAddressVerificationApiUri }}"
+            - name: "LoqateSettings__AddressSettings__SearchCountry"
+              value: "{{ .Values.loqateSettingsAddressSettingsSearchCountry }}"
+            - name: "AccertifySettings__TransactionApiServiceUseMocked"
+              value: "{{ .Values.accertifySettingsTransactionApiServiceUseMocked }}"
+# Extended by CP:
+            - name: "JwtSettings__AzureAdDisabled"
+              value:  "false"
+          #livenessProbe:
+           # httpGet:
+            #  path: /
+             # port: http
+          #readinessProbe:
+          #  httpGet:
+          #    path: /
+          #    port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

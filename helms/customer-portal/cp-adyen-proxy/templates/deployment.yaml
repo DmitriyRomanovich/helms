@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-adyen-proxy.fullname" . }}
+  labels:
+    {{- include "cp-adyen-proxy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-adyen-proxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-adyen-proxy.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-adyen-proxy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "AdyenAPIOptions__URI"
+              value: "http://cp-adyen-service.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "SmsSenderAPIOptions__URI"
+              value: "http://cp-sms-sender.{{ .Values.cpNamespace }}.svc.cluster.local"
+            - name: "AzureAd__Instance"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com"
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdAdyenProxy }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.azureADB2COptionsClientSecretAdyenProxy | quote }}
+            - name: "RabbitMqSettings__HostName"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqSettings__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqSettings__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "CustomerRecordAPIOptions__URI"
+              value: "http://cp-customer-record.{{ .Values.cpNamespace }}.svc.cluster.local"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

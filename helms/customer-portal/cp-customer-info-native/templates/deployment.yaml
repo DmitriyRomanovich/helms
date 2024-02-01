@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-customer-info-native.fullname" . }}
+  labels:
+    {{- include "cp-customer-info-native.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-customer-info-native.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-customer-info-native.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-customer-info-native.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if ne (.Values.customerName | toString) "ee-uks" }}
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbCPCustomerInfoNative }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Keepalive=1;Password={{ .Values.dbPassword }}"    
+            {{- end }}
+            - name: "AzureAd__Instance"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdCustomerNative }}"
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com"
+            - name: "AzureAd__ClientSecret"
+              value: "{{ .Values.azureADB2COptionsClientSecretCustomerNative }}"
+            - name: "CustomerRecordAPIOptions__URI"
+              value: "http://cp-customer-record.{{ .Values.cpNamespace }}.svc.cluster.local"   
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

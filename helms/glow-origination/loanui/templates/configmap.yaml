@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config-lm
+data:
+  config.js: |
+    window._config_ = {
+      LOAN_MANAGEMENT_URL: '{{ .Values.webUrlLmApi }}',
+      AZURE_AD_DISABLED: {{ .Values.azureADDisabled }}
+    };

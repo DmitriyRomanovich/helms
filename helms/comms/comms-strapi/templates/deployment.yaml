@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "comms-strapi.fullname" . }}
+  labels:
+    {{- include "comms-strapi.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "comms-strapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "comms-strapi.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ include "comms-strapi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: {{ .Values.namespace }}-comms-strapi-storage-claim
+          persistentVolumeClaim:
+            claimName: {{ .Values.namespace }}-comms-strapi-storage-claim
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          terminationMessagePath: "/tmp/my-log"
+          volumeMounts:
+            - name: {{ .Values.namespace }}-comms-strapi-storage-claim
+              mountPath: /opt/app/public/uploads
+          ports:
+            - containerPort: 1337
+          env:
+            # - name: HOST
+            #   value: "0.0.0.0"
+            # - name: PORT
+            #   value: "1337"
+            # - name: PUBLIC_URL
+            #   value: "https://comms-management{{ .Values.EnvName }}.glowfinsvs.com"
+            # - name: NODE_ENV
+            #   value: production
+            - name: "DATABASE_CLIENT"
+              value: "postgres"
+            - name: "DATABASE_NAME"
+              value: "{{ .Values.dbcommsStrapi }}"
+            - name: "DATABASE_HOST"
+              value: "{{ .Values.dbHost }}"
+            - name: "DATABASE_PORT"
+              value: "5432"
+            - name: "DATABASE_USERNAME"
+              value: "{{ .Values.dbUser }}"
+            - name: "DATABASE_PASSWORD"
+              value: {{ .Values.dbPassword | quote }}
+            - name: "DATABASE_SSL"
+              value: "true"
+            - name: "RABBIT_HOST"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RABBIT_USER"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RABBIT_PASS"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RABBIT_VIRTUAL_HOST"
+              value: "/{{ .Values.rabbitmqVHost }}"
+            - name: "JWT_SECRET"
+              value: {{ .Values.commsStrapiJwtSecret | quote }}
+            - name: "TRANSFER_TOKEN_SALT"
+              value: "{{ .Values.commsStrapiTransferTokenSalt }}"
+            - name: "ADMIN_JWT_SECRET"
+              value: {{ .Values.commsStrapiAdminJwtSecret | quote }}
+            - name: "API_TOKEN_SALT"
+              value: "{{ .Values.commsStrapiApiTokenSalt }}"
+            - name: "APP_KEYS"
+              value: "{{ .Values.commsStrapiAppKeys }}"
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 1337
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 1337
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

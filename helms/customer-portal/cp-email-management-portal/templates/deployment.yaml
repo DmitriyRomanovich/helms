@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-email-management-portal.fullname" . }}
+  labels:
+    {{- include "cp-email-management-portal.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-email-management-portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-email-management-portal.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-email-management-portal.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "appUrl"
+              value: "null"
+            - name: "JwtSettings__Issuer"
+              value: "{{ .Values.cpEmailManagementPortalJwtSettingsIssuer }}"
+            - name: "JwtSettings__TokenKey"
+              value: {{ .Values.cpEmailManagementPortalJwtSettingsTokenKey | quote }}
+            - name: "AuthSettings__AuthServerUrl"
+              value: "http://authserver.{{ .Values.commonNamespace }}.svc.cluster.local:8080"
+            - name: "AuthSettings__ClientId"
+              value: "{{ .Values.cpEmailManagementPortalAuthSettingsClientId }}"
+            - name: "AuthSettings__ClientSecret"
+              value: {{ .Values.cpEmailManagementPortalAuthSettingsClientSecret | quote }}
+            - name: "MicroservicesSettings__UserApiUrl"
+              value: "http://user-api.{{ .Values.commonNamespace }}.svc.cluster.local"
+            - name: "MicroservicesSettings__ChannelPartnerApiUrl"
+              value: "http://channel-partner-api.{{ .Values.commonNamespace }}.svc.cluster.local"
+            - name: "MicroservicesSettings__PdfGeneratorApiUrl"
+              value: "http://pdf-gen-api.{{ .Values.commonNamespace }}.svc.cluster.local"
+            - name: "MicroservicesSettings__EmailTemplateManagementApiUrl"
+              value: "http://email-management-api.{{ .Values.commonNamespace }}.svc.cluster.local"
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}       
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}" 
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

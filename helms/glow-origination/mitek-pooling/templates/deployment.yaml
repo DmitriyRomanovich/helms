@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mitek-pooling.fullname" . }}
+  labels:
+    {{- include "mitek-pooling.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mitek-pooling.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mitek-pooling.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mitek-pooling.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: "ConnectionStrings__db"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.dbDatabaseApi }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "MitekSettings__ApiUrl"
+              value: "{{ .Values.mitekSettingsApiUrl }}"
+            - name: "MitekSettings__ClientId"
+              value: "{{ .Values.mitekSettingsApiClientid }}"
+            - name: "MitekSettings__ClientSecretAuto"
+              value: "{{ .Values.mitekSettingsClientSecretAuto }}"
+            - name: "MitekSettings__ClientSecretAgent"
+              value: "{{ .Values.mitekSettingsClientSecretAgent }}"
+            - name: "MitekSettings__GrantType"
+              value: "{{ .Values.mitekSettingsGrantType }}"
+            - name: "MitekSettings__AutoScope"
+              value: "{{ .Values.mitekSettingsAutoScope }}"
+            - name: "MitekSettings__AgentScope"
+              value: "{{ .Values.mitekSettingsAgentScope }}"
+            - name: "MitekPollingServiceConfig__ExecutionInterval"
+              value: "{{ .Values.mitekPollingServiceConfigExecutionInterval }}"
+            - name: "MitekPollingServiceConfig__IdleWork"
+              value: "{{ .Values.mitekPollingServiceConfigIdleWork }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__logName
+              value: "{{ .Values.prodPIILogsWorkspaceLogName }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__workspaceId
+              value: "{{ .Values.prodPIILogsWorkspaceID }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__authenticationId
+              value: "{{ .Values.prodPIILogsWorkspaceAuthenticationKey }}"
+          #livenessProbe:
+          #  httpGet:
+          #    path: /
+          #    port: http
+         # readinessProbe:
+           # httpGet:
+           #   path: /
+           #   port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

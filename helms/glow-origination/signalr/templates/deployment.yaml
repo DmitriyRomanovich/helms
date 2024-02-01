@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "signalr.fullname" . }}
+  labels:
+    {{- include "signalr.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "signalr.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "signalr.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "signalr.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: "ASPNETCORE_FORWARDEDHEADERS_ENABLED"
+              value: "true"
+            - name: "ForwardedForHeaderName__Value"
+              value: "{{ .Values.forwardedForHeaderNameValue }}"
+            - name: "AllowedOrigins__SignalR"
+              value: '["{{ .Values.webUrlApp }}", "{{ .Values.webUrlQT }}", "{{ .Values.webUrlAdmin }}", "https://app.shop.samsungfinance.co.uk", "https://app.sole.company.samsungfinance.co.uk"]'
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: JwtSettings__TokenExpireTimeMinutes
+              value: "{{ .Values.jwtSettingsTokenExpireTimeMinutes }}"
+            - name: JwtSettings__RefreshTokenExpireTimeMinutes
+              value: "{{ .Values.jwtSettingsRefreshTokenExpireTimeMinutes }}"
+            - name: JwtSettings__UserTokenExpireTimeMinutes
+              value: "{{ .Values.jwtSettingsUserTokenExpireTimeMinutes }}"
+            - name: JwtSettings__UserRefreshTokenExpireTimeMinutes
+              value: "{{ .Values.jwtSettingsUserRefreshTokenExpireTimeMinutes }}"
+            - name: JwtSettings__Key
+              value: "{{ .Values.jwtSettingsKey }}"
+            - name: JwtSettings__Issuer
+              value: "{{ .Values.jwtSettingsIssuer }}"
+            - name: PrsSettings__AllowedIpRanges
+              value: "{{ .Values.prsSettingsAllowedIpRanges }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__logName
+              value: "{{ .Values.prodPIILogsWorkspaceLogName }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__workspaceId
+              value: "{{ .Values.prodPIILogsWorkspaceID }}"
+            - name: Serilog__WriteTo__0__Args__configureLogger__WriteTo__0__Args__authenticationId
+              value: "{{ .Values.prodPIILogsWorkspaceAuthenticationKey }}"
+         # livenessProbe:
+          #  httpGet:
+         #     path: /
+         #     port: http
+         # readinessProbe:
+         #   httpGet:
+         #     path: /
+         #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

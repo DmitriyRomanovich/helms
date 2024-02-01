@@ -1,0 +1,251 @@
+# Default values for eventbushandler.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: glowacr02.azurecr.io/eventbushandler
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths: []
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources: 
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+   limits:
+     cpu: 300m
+     memory: 1024Mi
+   requests:
+     cpu: 1m
+     memory: 10Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+### Overwritten variables
+forwardedForHeaderNameValue: ""
+namespace: ""
+eventbushandlerClientSettingsClientName: ""
+eventbushandlerClientSettingsClientKey: ""
+dbHost: ""
+dbDatabaseApi: ""
+dbUser: ""
+dbPassword: ""
+dbDatabaseHistory: ""
+loqateSettingsAddressVerificationApiKey: ""
+loqateSettingsUseMockedVerificationService: ""
+loqateSettingsAddressVerificationApiUri: ""
+loqateSettingsAddressSettingsSearchCountry: ""
+posNotificationsLoanOutcomeNotificationSendNotification: ""
+submitStageOptionsDelivery: ""
+submitStageOptionsIdRecognition: ""
+submitStageOptionsUpfrontPayment: ""
+submitStageOptionsVerificationCode: ""
+submitStageOptionsPrsUpfrontPaymentEnabled: ""
+sendGridAccountSettingsFrom: ""
+sendGridAccountSettingsFromName: ""
+webUrlApp: ""
+webUrlPs: ""
+rabbitmqHost: ""
+rabbitmqUser: ""
+rabbitmqPassword: ""
+rabbitmqVHost: ""
+servicesSettingsOutlookEmailSenderUseMocked: ""
+servicesSettingsTwillioSmsSenderUseMocked: ""
+servicesSettingsVerificationCodeGeneratorUseMocked: ""
+servicesSettingsSendGridEmailSenderUseMocked: ""
+servicesSettingsUseOutlookEmailSender: ""
+servicesSettingsEnableProposalStatusPollingHostedService: ""
+accertifySettingsApiUrl: ""
+accertifySettingsApiIdInitial: ""
+accertifySettingsApiIdUpdateSuccess: ""
+accertifySettingsApiIdUpdateCancel: ""
+accertifySettingsApiIdUpdateChange: ""
+accertifySettingsTransactionApiServiceUseMocked: ""
+accertifySettingsAuthorizationUsername: ""
+accertifySettingsAuthorizationPassword: ""
+mitekSettingsApiUrl: ""
+mitekSettingsApiClientid: ""
+mitekSettingsClientSecretAuto: ""
+mitekSettingsClientSecretAgent: ""
+mitekSettingsGrantType: ""
+mitekSettingsAutoScope: ""
+mitekSettingsAgentScope: ""
+mitekSettingsMaxScoreForAgentReview: ""
+mitekSettingsTakePictureAttempts: ""
+mitekSettingsMinScoreForAgentReview: ""
+mitekSettingsIsAutoReviewDisabled: ""
+mitekSettingsIsAgentReviewDisabled: ""
+mitekSettingsIsAgentReviewBirthdayCheckDisabled: ""
+mitekSettingsIsAutoReviewBirthdayCheckDisabled: ""
+mitekSettingsIsAutoReviewNameCheckDisabled: ""
+mitekSettingsAutoReviewResponseTimeout: ""
+mitekSettingsMinScoreForAutoReviewSuccess: ""
+mitekSettingsIsSelfieCheckDisabled: ""
+anchorProposalReviewPollingSettingsPeriodInSeconds: ""
+anchorProposalReviewPollingSettingsFirstExecutionDelayInSeconds: ""
+anchorSettingsProposalsEndpointEndpointAddress: ""
+anchorSettingsProposalsEndpointUsername: ""
+anchorSettingsProposalsEndpointPassword: ""
+anchorSettingsProposalsEndpointAccount: ""
+anchorSettingsCollectionsEndpointEndpointAddress: ""
+anchorSettingsCollectionsEndpointUsername: ""
+anchorSettingsCollectionsEndpointPassword: ""
+anchorSettingsCollectionsEndpointAccount: ""
+anchorSettingsVerboseMode: ""
+anchorSettingsMaxProposalUpdateWaitingSeconds: ""
+anchorSettingsUseMocked: ""
+goCardlessOptionsDefaultCountryCode: ""
+goCardlessOptionsUseSandBox: ""
+goCardlessOptionsUseMocked: ""
+goCardlessApiKey: ""
+webUrlLmUI: ""
+webUrlAdmin: ""
+userExampleSiteWebDomain: ""
+jwtSettingsTokenExpireTimeMinutes: ""
+jwtSettingsRefreshTokenExpireTimeMinutes: ""
+jwtSettingsUserTokenExpireTimeMinutes: ""
+jwtSettingsUserRefreshTokenExpireTimeMinutes: ""
+jwtSettingsIssuer: ""
+jwtSettingsKey: ""
+anchorHardCheckUpdateServiceSettingsRetryPeriodInHours: ""
+anchorHardCheckUpdateServiceSettingsServiceStartDelayInSeconds: ""
+anchorHardCheckUpdateServiceSettingsMaxAttemptsCount: ""
+adyenSettingsApiUrl: ""
+adyenSettingsApiKey: ""
+adyenSettingsEnvironment: ""
+adyenSettingsMerchantAccount: ""
+adyenSettingsCountryCode: ""
+adyenSettingsShopperLocale: ""
+adyenSettingsHmacKey: ""
+oneTimePasswordAttemptsSettingsAttemptTimeIncreasingIn: ""
+oneTimePasswordAttemptsSettingsOTPAttemptsTime: ""
+apiUrlGlow: ""
+verificationCodeSettingsVerificationCodeExpireTimeMinutes: ""
+encryptionSettingsKey: ""
+twilioAccountSettingsAccountSid: ""
+twilioAccountSettingsAuthToken: ""
+twilioAccountSettingsFromNumber: ""
+orderedRefundExecutorSettingsRetryPeriodInMinutes: ""
+orderedRefundExecutorSettingsMaxAttemptsCount: ""
+orderedRefundExecutorSettingsServiceStartDelayInSeconds: ""
+applicationsCleanerSettingsIsDisabled: ""
+applicationsCleanerSettingsPeriodInSeconds: ""
+applicationsCleanerSettingsApplicationOldInDays: ""
+applicationsCleanerSettingsApplicationLastUpdateInHours: ""
+applicationsCleanerSettingsFirstExecutionDelayInSeconds: ""
+applicationsCleanerSettingsRemoveOutdatedApplications: ""
+applicationsCleanerSettingsApplicationOutdatedInDays: ""
+adyenSettingsReportApiUrl: ""
+adyenSettingsReportPassword: ""
+adyenSettingsReportUserName: ""
+loanManagementExpirationCheckSettingsIsDisabled: ""
+loanManagementAdminSettingsEmail: ""
+returningCustomerSettingsPreviousProposalOutdatedForReuseInMinutes: ""
+loanBlobStorageSettingsAccountKey: ""
+loanBlobStorageSettingsAccountName: ""
+loanBlobStorageSettingsMaxConnectionRetries: ""
+loanOutcomeExecutorSettingsFailedRetryPeriodInSeconds: ""
+loanOutcomeExecutorSettingsMaxAttemptsCount: ""
+strapiURL: ""
+sendGridAccountSettingsApiKey: ""
+proposalQueuedEventSettingsIsProposalQueuedEnabled: ""
+proposalQueuedEventSettingsIsAnchorResponseCheckEnabled: ""
+proposalQueuedEventSettingsIsDisabled: ""
+vatlayerSettingsApiKey: ""
+vatlayerSettingsUseMocked: ""
+prodPIILogsWorkspaceLogName: ""
+prodPIILogsWorkspaceID: ""
+prodPIILogsWorkspaceAuthenticationKey: ""
+reSettingsEnabled: ""
+reSettingsRabbitMqSettingsOrigin: ""
+reSettingsRabbitMqSettingsConfigurationConsumersCount: ""
+reSettingsRabbitMqSettingsExchangeNamesIncomingExchange: ""
+reSettingsRabbitMqSettingsExchangeNamesOutgoingExchange: ""
+reSettingsRabbitMqSettingsVirtualHost: ""
+reSettingsScoreVerificationSettingsApiRule: ""
+reSettingsScoreVerificationSettingsApiRuleRunner: ""
+reSettingsScoreVerificationSettingsChecksRule: ""
+reSettingsScoreVerificationSettingsChecksLiveRuleRunner: ""
+reSettingsScoreVerificationSettingsChecksTestRuleRunner: ""
+categoriesSettingsBalloonPaymentIgnoredProductCategories0: ""
+categoriesSettingsBalloonPaymentIgnoredProductCategories1: ""
+categoriesSettingsBalloonPaymentIgnoredProductCategories2: ""
+rabbitMqConfigExchangeSettingsProposalCreateUseQos: ""
+rabbitMqConfigExchangeSettingsProposalCreateAdditionalConsumersQty: ""
+rabbitMqConfigExchangeSettingsProposalApplyUseQos: ""
+rabbitMqConfigExchangeSettingsProposalApplyAdditionalConsumersQty: ""
+categoriesSettingsServiceCategories0: ""
+categoriesSettingsServiceCategories1: ""
+commonNamespace: ""
+servicesSettingsUseGotenbergPdfGenerator: ""
+iconBlobSettingsAccountKey: ""
+iconBlobSettingsAccountName: ""
+iconBlobSettingsDomain: ""
+applicationDataBlobSettingsMaxConnectionRetries: ""
+applicationDataBlobStorageSettingsContainerName: ""
+applicationDataBlobStorageSettingsFolderNamesAgreements: ""
+applicationDataBlobStorageSettingsFolderNamesDocumentReviews: ""
+agreementNumberGeneratorClientSettingsIsEnabled: ""
+submitStageOptionsAirtimeAgreement: ""
+submitStageOptionsInsuranceAgreement: ""
+gotenbergSharpClientOptionsServiceUrl: ""
+gotenbergSharpClientOptionsHealthCheckUrl: ""
+wkhtmltopdfGeneratorApiUrl: ""
+customerName: ""

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config-calc
+data:
+  config.js: |
+    window._config_ = {
+      FIN_CALC_DOMAIN: '{{ .Values.webUrlFincalc }}'
+    };

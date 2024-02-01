@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rebuilderapi.fullname" . }}
+  labels:
+    {{- include "rebuilderapi.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rebuilderapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "rebuilderapi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rebuilderapi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if regexMatch "dev" .Values.namespace }}  
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Development"
+            {{ end }}
+            - name: "ConnectionStrings__rule_engine_builder"
+              value: "Server={{ .Values.dbHost }}; Port=5432; Database={{ .Values.reBuilderDB }}; Userid={{ .Values.dbUser }}; SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Password={{ .Values.dbPassword }}"
+            - name: "GlowCalculationServiceOptions__Uri"
+              value: "{{ .Values.glowCalculationServiceOptionsUri }}"
+            - name: "GroupsCheckRequirement"
+              value: "{{ .Values.reGroupsCheckRequirement }}"
+            - name: "AzureAd__Instance"
+              value: "https://login.microsoftonline.com/"
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.reAzureAdDomain }}"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.reAzureAdClientId }}"
+            - name: "AzureAd__TenantId"
+              value: "{{ .Values.reAzureAdTenantId }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.reAzureAdClientSecret | quote }}
+            - name: "ReWorkerRabbitMqClientSettings__Origin"
+              value: "ReBuilderApi"
+            - name: "ReWorkerRabbitMqClientSettings__ExchangeNames__IncomingExchange"
+              value: "ReWorkerIncomingExchange"
+            - name: "ReWorkerRabbitMqClientSettings__ExchangeNames__OutgoingExchange"
+              value: "ReWorkerOutgoingExchange"
+            - name: "ReWorkerRabbitMqClientSettings__ExchangeNames__InvalidateCacheExchange"
+              value: "ReWorkerInvalidateCacheExchange"
+            - name: "ReWorkerRabbitMqClientSettings__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "ReWorkerRabbitMqClientSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "ReWorkerRabbitMqClientSettings__Password"
+              value: {{ .Values.rabbitmqPassword | quote }} 
+            - name: ReWorkerRabbitMqClientSettings__VirtualHost
+              value: "{{ .Values.reRabbitmqVHost }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

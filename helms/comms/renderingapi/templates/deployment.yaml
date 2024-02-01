@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "renderingapi.fullname" . }}
+  labels:
+    {{- include "renderingapi.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "renderingapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "renderingapi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "renderingapi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- if regexMatch "dev" .Values.namespace }}  
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Development"
+            {{ end }}
+            - name: "RabbitMqConfig__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqConfig__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqConfig__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqConfig__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"
+            - name: "StrApiSettings__ApiUrl"
+              value: "{{ .Values.commsStrApiSettingsApiUrl }}"
+            - name: "StrApiSettings__Identifier"
+              value: "{{ .Values.commsStrApiSettingsIdentifier }}"
+            - name: "StrApiSettings__Password"
+              value: {{ .Values.commsStrApiSettingsPassword | quote }}
+            - name: "BlobStorageSettings__ContainerName"
+              value: "{{ .Values.commsBlobStorageSettingsContainerName }}"
+            - name: "BlobStorageSettings__ConnectionString"
+              value: "DefaultEndpointsProtocol=https;AccountName={{ .Values.commsBlobStorageSettingsAccountName }};AccountKey={{ .Values.commsBlobStorageSettingsAccountKey }};EndpointSuffix=core.windows.net"
+            - name: "GotenbergSharpClientOptions__ServiceUrl"
+              value: "{{ .Values.gotenbergSharpClientOptionsServiceUrl }}"  
+            - name: "GotenbergSharpClientOptions__HealthCheckUrl"
+              value: "{{ .Values.gotenbergSharpClientOptionsHealthCheckUrl }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cp-ui
+data:
+  config.js: |
+    window._config_ = {
+      portalTheme: '{{ .Values.cpUIPortalTheme }}',
+      googleApiKey: '',
+      APIGWUrl: '{{ .Values.webUrlCPApigw }}',
+      azureSettings: {
+        redirectUrl: '{{ .Values.webUrlCPUI }}',
+        tenantName: '{{ .Values.azureADB2COptionsTenantName }}',
+        clientId: '{{ .Values.azureADB2CApplicationIdCPUI }}',  
+        scopes: {          
+          insuranceScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2CApplicationIdFileClaim }}/file_claim_user',
+          basicScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdAuthService }}/access_as_user',
+          basicCallAgentScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdCaImpersonation }}/access_as_call_agent',
+          customerInfoScope: "https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdCustomerInformationProxy }}/access_as_user",
+          deviceNativeScope: "https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdCustomerDeviceNative }}/access_as_user",
+          adyenScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdAdyenService }}/access_as_user',
+          loanScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdLoanProxyService }}/access_as_user', 
+          paymentScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdPaymentProxy }}/access_as_user',
+          smsScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdAdyenProxy }}/access_as_user',
+          emailScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdCPEmailService }}/access_as_user',
+          documentsScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdCPDocumentProxy }}/access_as_user',
+          securityQuestionsScope: 'https://{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com/{{ .Values.azureADB2COptionsApplicationIdCPSQ }}/access_as_user',
+        }
+      },
+      insurBackendUrl: '',
+      adyen: {
+        clientKey: '{{ .Values.cpAdyenClientKey }}',
+        environment: '{{ .Values.cpUIAdyenEnvironment }}',
+      },
+      themeStorageName: '{{ .Values.cpUIThemeStorageName }}',
+      features: {
+        makePayment: true,
+        paymentSchedule: {{ .Values.cpUIFeaturesPaymentSchedule }},
+        updateBillingDetails: {{ .Values.cpUIFeaturesUpdateBillingDetails }},
+      },
+      externalLinks: {
+        {{- if ne (.Values.cpUIexternalLinksHelpCentre | toString) "$(cpUIexternalLinksHelpCentre)" }}
+        helpCentre: '{{ .Values.cpUIexternalLinksHelpCentre }}',
+        {{- else }}
+        helpCentre: '',
+        {{- end }}
+        {{- if ne (.Values.cpUIexternalLinksFooterMainLink1 | toString) "$(cpUIexternalLinksFooterMainLink1)" }}
+        footerMainLink1: '{{ .Values.cpUIexternalLinksFooterMainLink1 }}',
+        {{- else }}
+        footerMainLink1: '',
+        {{- end }}
+        {{- if ne (.Values.cpUIexternalLinksFooterMainLink2 | toString) "$(cpUIexternalLinksFooterMainLink2)" }}
+        footerMainLink2: '{{ .Values.cpUIexternalLinksFooterMainLink2 }}',
+        {{- else }}
+        footerMainLink2: '',
+        {{- end }}
+        {{- if ne (.Values.cpUIexternalLinksBannerLink | toString) "$(cpUIexternalLinksBannerLink)" }}
+        bannerLink: '{{ .Values.cpUIexternalLinksBannerLink }}',
+        {{- else }}
+        bannerLink: '',
+        {{- end }}
+      },
+    };

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cp-email-management-ui.fullname" . }}
+  labels:
+    {{- include "cp-email-management-ui.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "cp-email-management-ui.selectorLabels" . | nindent 4 }}

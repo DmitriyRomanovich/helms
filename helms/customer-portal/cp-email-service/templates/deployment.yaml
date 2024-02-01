@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cp-email-service.fullname" . }}
+  labels:
+    {{- include "cp-email-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cp-email-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cp-email-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cp-email-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "RabbitMqSettings__Hostname"
+              value: "{{ .Values.rabbitmqHost }}"
+            - name: "RabbitMqSettings__UserName"
+              value: "{{ .Values.rabbitmqUser }}"
+            - name: "RabbitMqSettings__Password"
+              value: {{ .Values.rabbitmqPassword | quote }}
+            - name: "RabbitMqSettings__VirtualHost"
+              value: "{{ .Values.rabbitmqVHost }}"                  
+            - name: "AdyenAPIOptions__URI"    
+              value: "http://cp-adyen-service.{{ .Values.cpNamespace }}.svc.cluster.local"                       
+            - name: "AzureAd__Domain"
+              value: "{{ .Values.azureADB2COptionsTenantName }}.onmicrosoft.com"
+            - name: "AzureAd__Instance"
+              value: "https://{{ .Values.azureADB2COptionsTenantName }}.b2clogin.com"
+            - name: "AzureAd__ClientId"
+              value: "{{ .Values.azureADB2COptionsApplicationIdCPEmailService }}"
+            - name: "AzureAd__ClientSecret"
+              value: {{ .Values.azureADB2COptionsClientSecretCPEmailService | quote }}
+            {{- if ne (.Values.cpEmailMethodSettingViaComms | toString) "$(cpEmailMethodSettingViaComms)" }}
+            - name: "EmailMethodSetting__ViaComms"
+              value: {{ .Values.cpEmailMethodSettingViaComms | quote }}
+            {{- end }}
+            {{- if ne .Values.privateCommsGatewayHttpSettingsUrl "$(privateCommsGatewayHttpSettingsUrl)" }}
+            - name: "CommsGatewayHttpSettings__Url"
+              value: "{{ .Values.privateCommsGatewayHttpSettingsUrl }}"
+            {{- end }}
+            {{- if ne .Values.cpCommsGatewayHttpSettingsToken "$(cpCommsGatewayHttpSettingsToken)" }}
+            - name: "CommsGatewayHttpSettings__Token"
+              value: {{ .Values.cpCommsGatewayHttpSettingsToken | quote }}
+            {{- end }}
+            {{- if ne .Values.cpCommsDefaultFiltersClient "$(cpCommsDefaultFiltersClient)" }}
+            - name: "CommsDefaultFilters__Client"
+              value: "{{ .Values.cpCommsDefaultFiltersClient }}"
+            {{- end }}
+            {{- if ne .Values.cpCommsDefaultFiltersMarket "$(cpCommsDefaultFiltersMarket)" }}
+            - name: "CommsDefaultFilters__Market"
+              value: "{{ .Values.cpCommsDefaultFiltersMarket }}"
+            {{- end }}
+            {{- if eq (.Values.cpEmailMethodSettingViaComms | toString ) "true" }}
+            - name: "CustomerRecordAPIOptions__URI"
+              value: "http://cp-customer-record.{{ .Values.cpNamespace }}.svc.cluster.local"
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
